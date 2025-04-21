@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import "../../src/base/Constants.sol";
+import {Errors} from "../../src/base/Errors.sol";
 import {Verifier} from "../../src/verifier/Verifier.pre.sol";
 
 contract VerifierTest is Test {
