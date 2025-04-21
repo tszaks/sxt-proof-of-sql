@@ -454,7 +454,7 @@ library Verifier {
                 append_array(transcript_ptr, table_lengths_ptr)
 
                 let commitment_len := mload(commitments_ptr)
-                mstore(commitments_ptr, mulmod(commitment_len, 2, MODULUS))
+                mstore(commitments_ptr, mul(commitment_len, 2))
                 append_array(transcript_ptr, commitments_ptr)
                 mstore(commitments_ptr, commitment_len)
 

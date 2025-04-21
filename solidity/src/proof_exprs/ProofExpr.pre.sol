@@ -31,7 +31,7 @@ library ProofExpr {
     ///   length equal to the columns in the expression
     /// ##### Return Values
     /// * `expr_ptr_out` - pointer to the remaining expression after consuming the proof expression
-    /// * `eval` - the evaluation of the result of this expression. Cirically, this resulting evaluation must be guarenteed to be
+    /// * `eval` - the evaluation of the result of this expression. Critically, this resulting evaluation must be guarenteed to be
     ///   the correct evaluation of a column with the same length as the columns in the expression. Every column has implicit infinite length
     ///   but is padded with zeros. This is guarenteed to match the length of the chi column, and varients must be designed to handle this.
     /// ##### Proof Plan Encoding
