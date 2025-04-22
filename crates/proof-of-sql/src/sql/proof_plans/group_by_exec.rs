@@ -65,6 +65,31 @@ impl GroupByExec {
             where_clause,
         }
     }
+
+    /// Get a reference to the table expression
+    pub fn table(&self) -> &TableExpr {
+        &self.table
+    }
+
+    /// Get a reference to the where clause
+    pub fn where_clause(&self) -> &DynProofExpr {
+        &self.where_clause
+    }
+
+    /// Get a reference to the group by expressions
+    pub fn group_by_exprs(&self) -> &[ColumnExpr] {
+        &self.group_by_exprs
+    }
+
+    /// Get a reference to the sum expressions
+    pub fn sum_expr(&self) -> &[AliasedDynProofExpr] {
+        &self.sum_expr
+    }
+
+    /// Get a reference to the count alias
+    pub fn count_alias(&self) -> &Ident {
+        &self.count_alias
+    }
 }
 
 impl ProofPlan for GroupByExec {
