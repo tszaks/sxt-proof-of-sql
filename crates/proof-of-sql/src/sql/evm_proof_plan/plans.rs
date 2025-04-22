@@ -1,12 +1,12 @@
 use super::{EVMDynProofExpr, EVMProofPlanError, EVMProofPlanResult};
 use crate::{
     base::{
-        database::{ColumnRef, TableRef},
+        database::{ColumnField, ColumnRef, TableRef},
         map::IndexSet,
     },
     sql::{
         proof_exprs::{AliasedDynProofExpr, TableExpr},
-        proof_plans::{DynProofPlan, FilterExec},
+        proof_plans::{DynProofPlan, EmptyExec, FilterExec, TableExec},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -17,6 +17,8 @@ use sqlparser::ast::Ident;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) enum EVMDynProofPlan {
     Filter(EVMFilterExec),
+    Empty(EVMEmptyExec),
+    Table(EVMTableExec),
 }
 
 impl EVMDynProofPlan {
@@ -27,6 +29,12 @@ impl EVMDynProofPlan {
         column_refs: &IndexSet<ColumnRef>,
     ) -> EVMProofPlanResult<Self> {
         match plan {
+            DynProofPlan::Empty(empty_exec) => {
+                Ok(Self::Empty(EVMEmptyExec::try_from_proof_plan(empty_exec)))
+            }
+            DynProofPlan::Table(table_exec) => {
+                EVMTableExec::try_from_proof_plan(table_exec, table_refs).map(Self::Table)
+            }
             DynProofPlan::Filter(filter_exec) => {
                 EVMFilterExec::try_from_proof_plan(filter_exec, table_refs, column_refs)
                     .map(Self::Filter)
@@ -42,10 +50,72 @@ impl EVMDynProofPlan {
         output_column_names: &IndexSet<String>,
     ) -> EVMProofPlanResult<DynProofPlan> {
         match self {
+            EVMDynProofPlan::Empty(_empty_exec) => {
+                Ok(DynProofPlan::Empty(EVMEmptyExec::try_into_proof_plan()))
+            }
+            EVMDynProofPlan::Table(table_exec) => Ok(DynProofPlan::Table(
+                table_exec.try_into_proof_plan(table_refs, column_refs)?,
+            )),
             EVMDynProofPlan::Filter(filter_exec) => Ok(DynProofPlan::Filter(
                 filter_exec.try_into_proof_plan(table_refs, column_refs, output_column_names)?,
             )),
         }
+    }
+}
+
+/// Represents a empty execution plan in EVM.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct EVMEmptyExec {}
+
+impl EVMEmptyExec {
+    /// Create a `EVMEmptyExec` from a `EmptyExec`.
+    pub(crate) fn try_from_proof_plan(_plan: &EmptyExec) -> Self {
+        Self {}
+    }
+
+    /// Convert into a proof plan
+    pub(crate) fn try_into_proof_plan() -> EmptyExec {
+        EmptyExec::new()
+    }
+}
+
+/// Represents a table execution plan in EVM.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct EVMTableExec {
+    table_number: usize,
+}
+
+impl EVMTableExec {
+    /// Try to create a `EVMTableExec` from a `TableExec`.
+    pub(crate) fn try_from_proof_plan(
+        plan: &TableExec,
+        table_refs: &IndexSet<TableRef>,
+    ) -> EVMProofPlanResult<Self> {
+        Ok(Self {
+            table_number: table_refs
+                .get_index_of(&plan.table_ref)
+                .ok_or(EVMProofPlanError::TableNotFound)?,
+        })
+    }
+
+    pub(crate) fn try_into_proof_plan(
+        &self,
+        table_refs: &IndexSet<TableRef>,
+        column_refs: &IndexSet<ColumnRef>,
+    ) -> EVMProofPlanResult<TableExec> {
+        let table_ref = table_refs
+            .get_index(self.table_number)
+            .cloned()
+            .ok_or(EVMProofPlanError::TableNotFound)?;
+
+        // Extract column fields for this table reference
+        let schema = column_refs
+            .iter()
+            .filter(|col_ref| col_ref.table_ref() == table_ref.clone())
+            .map(|col_ref| ColumnField::new(col_ref.column_id(), *col_ref.column_type()))
+            .collect();
+
+        Ok(TableExec::new(table_ref, schema))
     }
 }
 
@@ -121,14 +191,84 @@ mod tests {
     };
 
     #[test]
+    fn we_can_put_empty_exec_in_evm() {
+        let empty_exec = EmptyExec::new();
+
+        // Roundtrip
+        let roundtripped_empty_exec = EVMEmptyExec::try_into_proof_plan();
+        assert_eq!(roundtripped_empty_exec, empty_exec);
+    }
+
+    #[test]
+    fn we_can_put_table_exec_in_evm() {
+        let table_ref: TableRef = "namespace.table".parse().unwrap();
+        let ident_a: Ident = "a".into();
+        let ident_b: Ident = "b".into();
+
+        let column_ref_a = ColumnRef::new(table_ref.clone(), ident_a.clone(), ColumnType::BigInt);
+        let column_ref_b = ColumnRef::new(table_ref.clone(), ident_b.clone(), ColumnType::BigInt);
+
+        let column_fields = vec![
+            ColumnField::new(ident_a, ColumnType::BigInt),
+            ColumnField::new(ident_b, ColumnType::BigInt),
+        ];
+
+        let table_exec = TableExec::new(table_ref.clone(), column_fields);
+
+        let evm_table_exec =
+            EVMTableExec::try_from_proof_plan(&table_exec, &indexset![table_ref.clone()]).unwrap();
+
+        let expected_evm_table_exec = EVMTableExec { table_number: 0 };
+
+        assert_eq!(evm_table_exec, expected_evm_table_exec);
+
+        // Roundtrip
+        let roundtripped_table_exec = EVMTableExec::try_into_proof_plan(
+            &evm_table_exec,
+            &indexset![table_ref.clone()],
+            &indexset![column_ref_a.clone(), column_ref_b.clone()],
+        )
+        .unwrap();
+
+        assert_eq!(roundtripped_table_exec.table_ref, table_exec.table_ref);
+        assert_eq!(roundtripped_table_exec.schema.len(), 2);
+    }
+
+    #[test]
+    fn table_exec_fails_with_table_not_found_from_proof_plan() {
+        let missing_table_ref: TableRef = "namespace.missing".parse().unwrap();
+
+        let column_fields = vec![
+            ColumnField::new(Ident::new("a"), ColumnType::BigInt),
+            ColumnField::new(Ident::new("b"), ColumnType::BigInt),
+        ];
+
+        let table_exec = TableExec::new(missing_table_ref, column_fields);
+
+        let result = EVMTableExec::try_from_proof_plan(&table_exec, &indexset![]);
+
+        assert!(matches!(result, Err(EVMProofPlanError::TableNotFound)));
+    }
+
+    #[test]
+    fn table_exec_fails_with_table_not_found_into_proof_plan() {
+        let evm_table_exec = EVMTableExec { table_number: 0 };
+
+        // Use an empty table_refs to trigger TableNotFound
+        let result = EVMTableExec::try_into_proof_plan(&evm_table_exec, &indexset![], &indexset![]);
+
+        assert!(matches!(result, Err(EVMProofPlanError::TableNotFound)));
+    }
+
+    #[test]
     fn we_can_put_filter_exec_in_evm() {
         let table_ref: TableRef = "namespace.table".parse().unwrap();
-        let identifier_a = "a".into();
-        let identifier_b = "b".into();
+        let ident_a = "a".into();
+        let ident_b = "b".into();
         let alias = "alias".to_string();
 
-        let column_ref_a = ColumnRef::new(table_ref.clone(), identifier_a, ColumnType::BigInt);
-        let column_ref_b = ColumnRef::new(table_ref.clone(), identifier_b, ColumnType::BigInt);
+        let column_ref_a = ColumnRef::new(table_ref.clone(), ident_a, ColumnType::BigInt);
+        let column_ref_b = ColumnRef::new(table_ref.clone(), ident_b, ColumnType::BigInt);
 
         let filter_exec = FilterExec::new(
             vec![AliasedDynProofExpr {
@@ -180,9 +320,23 @@ mod tests {
 
     #[test]
     fn we_cannot_put_unsupported_proof_plan_in_evm() {
-        let plan = DynProofPlan::new_empty();
+        // Create a Union of two empty execs which is not supported in EVM
+        let empty_exec1 = EmptyExec::new();
+        let empty_exec2 = EmptyExec::new();
+        let schema: Vec<ColumnField> = Vec::new();
+
+        // Create a union plan with two empty execs
+        let plan = DynProofPlan::new_union(
+            vec![
+                DynProofPlan::Empty(empty_exec1),
+                DynProofPlan::Empty(empty_exec2),
+            ],
+            schema,
+        );
+
         let table_refs = indexset![];
         let column_refs = indexset![];
+
         assert!(matches!(
             EVMDynProofPlan::try_from_proof_plan(&plan, &table_refs, &column_refs),
             Err(EVMProofPlanError::NotSupported)
