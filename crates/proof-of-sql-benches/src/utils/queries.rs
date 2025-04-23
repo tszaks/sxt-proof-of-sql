@@ -10,6 +10,7 @@ use super::OptionalRandBound;
 use proof_of_sql::base::{
     database::{ColumnType, LiteralValue},
     math::decimal::Precision,
+    posql_time::{PoSQLTimeUnit, PoSQLTimeZone},
 };
 
 /// Type alias for a single column definition in a query.
@@ -352,6 +353,56 @@ impl BaseEntry for SumCount {
     }
 }
 
+/// Coin query.
+pub struct Coin;
+impl BaseEntry for Coin {
+    fn title(&self) -> &'static str {
+        "Coin"
+    }
+
+    fn sql(&self) -> &'static str {
+        "SELECT 
+        SUM( 
+        (
+            CAST (to_address = $1 as bigint)
+            - CAST (from_address = $1 as bigint)
+        )
+        * value
+        * CAST(timestamp AS bigint)
+        ) AS weighted_value,
+        SUM( 
+        (
+            CAST (to_address = $1 as bigint)
+            - CAST (from_address = $1 as bigint)
+        )
+        * value
+        ) AS total_balance,
+        COUNT(1) AS num_transactions
+        FROM bench_table;"
+    }
+
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
+            ("from_address", ColumnType::VarChar, None),
+            ("to_address", ColumnType::VarChar, None),
+            (
+                "value",
+                ColumnType::Decimal75(Precision::new(75).unwrap(), 0),
+                None,
+            ),
+            (
+                "timestamp",
+                ColumnType::TimestampTZ(PoSQLTimeUnit::Second, PoSQLTimeZone::utc()),
+                None,
+            ),
+        ]
+    }
+
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![LiteralValue::VarChar("a".to_string())]
+    }
+}
+
 /// Retrieves all available queries.
 pub fn all_queries() -> Vec<QueryEntry> {
     vec![
@@ -364,6 +415,7 @@ pub fn all_queries() -> Vec<QueryEntry> {
         LargeColumnSet.entry(),
         ComplexCondition.entry(),
         SumCount.entry(),
+        Coin.entry(),
     ]
 }
 

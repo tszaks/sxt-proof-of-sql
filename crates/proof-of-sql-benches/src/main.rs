@@ -113,6 +113,8 @@ enum Query {
     ComplexCondition,
     /// Sum count query
     SumCount,
+    /// Coin query
+    Coin,
 }
 
 impl Query {
@@ -129,6 +131,7 @@ impl Query {
             Query::LargeColumnSet => "Large Column Set",
             Query::ComplexCondition => "Complex Condition",
             Query::SumCount => "Sum Count",
+            Query::Coin => "Coin",
         }
     }
 }
