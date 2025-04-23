@@ -123,7 +123,7 @@ impl EVMTableExec {
     ) -> EVMProofPlanResult<Self> {
         Ok(Self {
             table_number: table_refs
-                .get_index_of(&plan.table_ref)
+                .get_index_of(plan.table_ref())
                 .ok_or(EVMProofPlanError::TableNotFound)?,
         })
     }
@@ -166,14 +166,14 @@ impl EVMFilterExec {
     ) -> EVMProofPlanResult<Self> {
         Ok(Self {
             table_number: table_refs
-                .get_index_of(&plan.table.table_ref)
+                .get_index_of(&plan.table().table_ref)
                 .ok_or(EVMProofPlanError::TableNotFound)?,
             results: plan
-                .aliased_results
+                .aliased_results()
                 .iter()
                 .map(|result| EVMDynProofExpr::try_from_proof_expr(&result.expr, column_refs))
                 .collect::<Result<_, _>>()?,
-            where_clause: EVMDynProofExpr::try_from_proof_expr(&plan.where_clause, column_refs)?,
+            where_clause: EVMDynProofExpr::try_from_proof_expr(plan.where_clause(), column_refs)?,
         })
     }
 
@@ -586,8 +586,11 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(roundtripped_table_exec.table_ref, table_exec.table_ref);
-        assert_eq!(roundtripped_table_exec.schema.len(), 2);
+        assert_eq!(
+            *roundtripped_table_exec.table_ref(),
+            *table_exec.table_ref()
+        );
+        assert_eq!(roundtripped_table_exec.schema().len(), 2);
     }
 
     #[test]
