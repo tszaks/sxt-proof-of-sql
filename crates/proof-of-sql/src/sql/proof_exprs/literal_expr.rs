@@ -11,6 +11,7 @@ use crate::{
 };
 use bumpalo::Bump;
 use serde::{Deserialize, Serialize};
+use sqlparser::ast::Ident;
 
 /// Provable CONST expression
 ///
@@ -82,7 +83,7 @@ impl ProofExpr for LiteralExpr {
     fn verifier_evaluate<S: Scalar>(
         &self,
         _builder: &mut impl VerificationBuilder<S>,
-        _accessor: &IndexMap<ColumnRef, S>,
+        _accessor: &IndexMap<Ident, S>,
         chi_eval: S,
         _params: &[LiteralValue],
     ) -> Result<S, ProofError> {

@@ -98,12 +98,12 @@ impl ProofExpr for ColumnExpr {
     fn verifier_evaluate<S: Scalar>(
         &self,
         _builder: &mut impl VerificationBuilder<S>,
-        accessor: &IndexMap<ColumnRef, S>,
+        accessor: &IndexMap<Ident, S>,
         _chi_eval: S,
         _params: &[LiteralValue],
     ) -> Result<S, ProofError> {
         Ok(*accessor
-            .get(&self.column_ref)
+            .get(&self.column_ref.column_id())
             .ok_or(ProofError::VerificationError {
                 error: "Column Not Found",
             })?)
