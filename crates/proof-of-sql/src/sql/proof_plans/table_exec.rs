@@ -15,6 +15,7 @@ use crate::{
 use alloc::vec::Vec;
 use bumpalo::Bump;
 use serde::{Deserialize, Serialize};
+use sqlparser::ast::Ident;
 
 /// Source [`ProofPlan`] for (sub)queries with table source such as `SELECT col from tab;`
 /// Inspired by `DataFusion` data source [`ExecutionPlan`]s such as [`ArrowExec`] and [`CsvExec`].
@@ -52,7 +53,7 @@ impl ProofPlan for TableExec {
     fn verifier_evaluate<S: Scalar>(
         &self,
         builder: &mut impl VerificationBuilder<S>,
-        accessor: &IndexMap<ColumnRef, S>,
+        accessor: &IndexMap<TableRef, IndexMap<Ident, S>>,
         _result: Option<&OwnedTable<S>>,
         chi_eval_map: &IndexMap<TableRef, S>,
         params: &[LiteralValue],
@@ -61,9 +62,11 @@ impl ProofPlan for TableExec {
             .schema
             .iter()
             .map(|field| {
-                let column_ref =
-                    ColumnRef::new(self.table_ref.clone(), field.name(), field.data_type());
-                *accessor.get(&column_ref).expect("Column does not exist")
+                *accessor
+                    .get(self.table_ref())
+                    .expect("Table does not exist")
+                    .get(&field.name())
+                    .expect("Column does not exist")
             })
             .collect::<Vec<_>>();
         let chi_eval = *chi_eval_map

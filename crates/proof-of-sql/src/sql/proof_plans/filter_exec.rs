@@ -24,6 +24,7 @@ use bumpalo::Bump;
 use core::marker::PhantomData;
 use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
+use sqlparser::ast::Ident;
 
 /// Provable expressions for queries of the form
 /// ```ignore
@@ -78,7 +79,7 @@ where
     fn verifier_evaluate<S: Scalar>(
         &self,
         builder: &mut impl VerificationBuilder<S>,
-        accessor: &IndexMap<ColumnRef, S>,
+        accessor: &IndexMap<TableRef, IndexMap<Ident, S>>,
         _result: Option<&OwnedTable<S>>,
         chi_eval_map: &IndexMap<TableRef, S>,
         params: &[LiteralValue],
@@ -86,10 +87,14 @@ where
         let input_chi_eval = *chi_eval_map
             .get(&self.table.table_ref)
             .expect("Chi eval not found");
+        let accessor = accessor
+            .get(&self.table.table_ref)
+            .cloned()
+            .unwrap_or_else(|| [].into_iter().collect());
         // 1. selection
         let selection_eval =
             self.where_clause
-                .verifier_evaluate(builder, accessor, input_chi_eval, params)?;
+                .verifier_evaluate(builder, &accessor, input_chi_eval, params)?;
         // 2. columns
         let columns_evals = Vec::from_iter(
             self.aliased_results
@@ -97,7 +102,7 @@ where
                 .map(|aliased_expr| {
                     aliased_expr
                         .expr
-                        .verifier_evaluate(builder, accessor, input_chi_eval, params)
+                        .verifier_evaluate(builder, &accessor, input_chi_eval, params)
                 })
                 .collect::<Result<Vec<_>, _>>()?,
         );

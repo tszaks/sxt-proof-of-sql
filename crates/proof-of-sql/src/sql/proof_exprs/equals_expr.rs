@@ -16,6 +16,7 @@ use crate::{
 use alloc::{boxed::Box, string::ToString, vec};
 use bumpalo::Bump;
 use serde::{Deserialize, Serialize};
+use sqlparser::ast::Ident;
 
 /// Provable AST expression for an equals expression
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -108,7 +109,7 @@ impl ProofExpr for EqualsExpr {
     fn verifier_evaluate<S: Scalar>(
         &self,
         builder: &mut impl VerificationBuilder<S>,
-        accessor: &IndexMap<ColumnRef, S>,
+        accessor: &IndexMap<Ident, S>,
         chi_eval: S,
         params: &[LiteralValue],
     ) -> Result<S, ProofError> {
