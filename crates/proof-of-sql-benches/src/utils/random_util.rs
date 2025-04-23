@@ -1,7 +1,6 @@
 use bumpalo::Bump;
-use indexmap::{indexmap, IndexMap};
 use proof_of_sql::base::{
-    database::{table_utility::table, Column, ColumnType, Table, TableRef},
+    database::{Column, ColumnType},
     scalar::Scalar,
 };
 use rand::Rng;
@@ -146,18 +145,4 @@ pub fn generate_random_columns<'a, S: Scalar>(
             )
         })
         .collect()
-}
-
-/// Generates a random table with the specified name and columns
-pub fn generate_random_table<'a, S: Scalar>(
-    alloc: &'a Bump,
-    rng: &mut impl Rng,
-    columns: &[(&str, ColumnType, OptionalRandBound)],
-    num_rows: usize,
-) -> IndexMap<TableRef, Table<'a, S>> {
-    indexmap! {
-        TableRef::from_names(None, "bench_table") => table(
-            generate_random_columns(alloc, rng, columns, num_rows)
-        )
-    }
 }

@@ -45,7 +45,7 @@ use nova_snark::{
 use proof_of_sql::{
     base::{
         commitment::{Commitment, CommitmentEvaluationProof},
-        database::TableTestAccessor,
+        database::TableRef,
     },
     proof_primitive::{
         dory::{
@@ -68,10 +68,10 @@ use std::{path::PathBuf, time::Instant};
 use tracing::{span, Level};
 mod utils;
 use utils::{
-    benchmark_accessor::new_test_accessor,
+    benchmark_accessor::BenchmarkAccessor,
     jaeger_setup::{setup_jaeger_tracing, stop_jaeger_tracing},
     queries::{all_queries, get_query, QueryEntry},
-    random_util::generate_random_table,
+    random_util::generate_random_columns,
     results_io::append_to_csv,
 };
 
@@ -211,9 +211,9 @@ fn get_rng(cli: &Cli) -> StdRng {
 /// * If the verification of the `VerifiableQueryResult` fails.
 fn bench_by_schema<'a, C, CP>(
     schema: &str,
-    alloc: &'a Bump,
     cli: &Cli,
     queries: &[QueryEntry],
+    public_setup: &'a C::PublicSetup<'a>,
     prover_setup: CP::ProverPublicSetup<'a>,
     verifier_setup: CP::VerifierPublicSetup<'_>,
 ) where
@@ -221,14 +221,18 @@ fn bench_by_schema<'a, C, CP>(
     CP: CommitmentEvaluationProof<Commitment = C, Scalar = C::Scalar>,
     <C as Commitment>::Scalar: 'a,
 {
-    for (query, sql, columns, params) in queries {
-        let tables = {
-            let mut rng = get_rng(cli);
-            generate_random_table::<C::Scalar>(alloc, &mut rng, columns, cli.table_size)
-        };
+    let alloc = Bump::new();
+    let mut accessor: BenchmarkAccessor<'_, C> = BenchmarkAccessor::default();
+    let mut rng = get_rng(cli);
 
+    for (query, sql, columns, params) in queries {
         // Get accessor
-        let accessor: TableTestAccessor<'a, CP> = new_test_accessor(&tables, prover_setup);
+        accessor.insert_table(
+            TableRef::from_names(None, "bench_table"),
+            &generate_random_columns(&alloc, &mut rng, columns, cli.table_size),
+            public_setup,
+        );
+
         let config = ConfigOptions::default();
         let statements = sqlparser::parser::Parser::parse_sql(&GenericDialect {}, sql).unwrap();
         let plans = sql_to_proof_plans(&statements, &accessor, &config).unwrap();
@@ -300,9 +304,9 @@ fn bench_by_schema<'a, C, CP>(
 fn bench_inner_product_proof(cli: &Cli, queries: &[QueryEntry]) {
     bench_by_schema::<RistrettoPoint, InnerProductProof>(
         "Inner Product Proof",
-        &Bump::new(),
         cli,
         queries,
+        &(),
         (),
         (),
     );
@@ -371,9 +375,9 @@ fn bench_dory(cli: &Cli, queries: &[QueryEntry]) {
 
     bench_by_schema::<DoryCommitment, DoryEvaluationProof>(
         "Dory",
-        &Bump::new(),
         cli,
         queries,
+        &prover_public_setup,
         prover_public_setup,
         verifier_public_setup,
     );
@@ -393,9 +397,9 @@ fn bench_dynamic_dory(cli: &Cli, queries: &[QueryEntry]) {
 
     bench_by_schema::<DynamicDoryCommitment, DynamicDoryEvaluationProof>(
         "Dynamic Dory",
-        &Bump::new(),
         cli,
         queries,
+        &&prover_setup,
         &prover_setup,
         &verifier_setup,
     );
@@ -440,9 +444,9 @@ fn bench_hyperkzg(cli: &Cli, queries: &[QueryEntry]) {
 
     bench_by_schema::<HyperKZGCommitment, HyperKZGCommitmentEvaluationProof>(
         "HyperKZG",
-        &Bump::new(),
         cli,
         queries,
+        &prover_setup.as_slice(),
         &prover_setup,
         &vk,
     );
