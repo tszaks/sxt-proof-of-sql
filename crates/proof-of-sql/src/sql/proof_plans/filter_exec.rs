@@ -33,10 +33,10 @@ use serde::{Deserialize, Serialize};
 /// This differs from the [`FilterExec`] in that the result is not a sparse table.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct OstensibleFilterExec<H: ProverHonestyMarker> {
-    pub(crate) aliased_results: Vec<AliasedDynProofExpr>,
-    pub(crate) table: TableExpr,
+    aliased_results: Vec<AliasedDynProofExpr>,
+    table: TableExpr,
     /// TODO: add docs
-    pub(crate) where_clause: DynProofExpr,
+    where_clause: DynProofExpr,
     phantom: PhantomData<H>,
 }
 
@@ -53,6 +53,21 @@ impl<H: ProverHonestyMarker> OstensibleFilterExec<H> {
             where_clause,
             phantom: PhantomData,
         }
+    }
+
+    /// Get the aliased results
+    pub fn aliased_results(&self) -> &[AliasedDynProofExpr] {
+        &self.aliased_results
+    }
+
+    /// Get the table expression
+    pub fn table(&self) -> &TableExpr {
+        &self.table
+    }
+
+    /// Get the where clause expression
+    pub fn where_clause(&self) -> &DynProofExpr {
+        &self.where_clause
     }
 }
 
