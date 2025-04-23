@@ -1,20 +1,38 @@
+//! Queries used for benchmarking
+//!
+//! To add a new query,
+//! 1. Implement the `BaseEntry` trait
+//! 2. Add the new query to the `all_queries` function.
+//! 3. Add the new query to the `proof-of-sql-benches/main.rs` `Query` enum.
+//! 4. Add the new query to the `proof-of-sql-benches/main.rs` `Query` `to_string()` impl.
 #![expect(clippy::cast_possible_wrap)]
 use super::OptionalRandBound;
-use proof_of_sql::base::database::ColumnType;
+use proof_of_sql::base::{
+    database::{ColumnType, LiteralValue},
+    math::decimal::Precision,
+};
 
 /// Type alias for a single column definition in a query.
 type ColumnDefinition = (&'static str, ColumnType, OptionalRandBound);
 
 /// Type alias for a single query entry.
-pub type QueryEntry = (&'static str, &'static str, &'static [ColumnDefinition]);
+pub type QueryEntry = (
+    &'static str,
+    &'static str,
+    Vec<ColumnDefinition>,
+    Vec<LiteralValue>,
+);
 
 /// Trait for defining a base query.
 pub trait BaseEntry {
     fn title(&self) -> &'static str;
     fn sql(&self) -> &'static str;
-    fn columns(&self) -> &'static [ColumnDefinition];
+    fn columns(&self) -> Vec<ColumnDefinition>;
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![]
+    }
     fn entry(&self) -> QueryEntry {
-        (self.title(), self.sql(), self.columns())
+        (self.title(), self.sql(), self.columns(), self.params())
     }
 }
 
@@ -26,11 +44,11 @@ impl BaseEntry for SingleColumnFilter {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT b FROM table WHERE a = 0"
+        "SELECT b FROM bench_table WHERE a = $1"
     }
 
-    fn columns(&self) -> &'static [ColumnDefinition] {
-        &[
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
             (
                 "a",
                 ColumnType::BigInt,
@@ -38,6 +56,10 @@ impl BaseEntry for SingleColumnFilter {
             ),
             ("b", ColumnType::VarChar, None),
         ]
+    }
+
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![LiteralValue::BigInt(0)]
     }
 }
 
@@ -49,11 +71,11 @@ impl BaseEntry for MultiColumnFilter {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT * FROM table WHERE ((a = 0) or (b = 1)) and (not (c = 'a'))"
+        "SELECT * FROM bench_table WHERE ((a = $1) OR (b = $2)) AND (c = $3)"
     }
 
-    fn columns(&self) -> &'static [ColumnDefinition] {
-        &[
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
             (
                 "a",
                 ColumnType::BigInt,
@@ -65,6 +87,14 @@ impl BaseEntry for MultiColumnFilter {
                 Some(|size| (size / 10).max(10) as i64),
             ),
             ("c", ColumnType::VarChar, None),
+        ]
+    }
+
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![
+            LiteralValue::BigInt(0),
+            LiteralValue::BigInt(1),
+            LiteralValue::VarChar("a".to_string()),
         ]
     }
 }
@@ -77,11 +107,11 @@ impl BaseEntry for Arithmetic {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT a + b as r0, a * b - 2 as r1, c FROM table WHERE a <= b AND a >= 0"
+        "SELECT a + b AS r0, a * b - $1 AS r1, c FROM bench_table WHERE a <= b AND a >= $2"
     }
 
-    fn columns(&self) -> &'static [ColumnDefinition] {
-        &[
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
             (
                 "a",
                 ColumnType::BigInt,
@@ -94,6 +124,10 @@ impl BaseEntry for Arithmetic {
             ),
             ("c", ColumnType::VarChar, None),
         ]
+    }
+
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![LiteralValue::BigInt(2), LiteralValue::BigInt(0)]
     }
 }
 
@@ -105,23 +139,27 @@ impl BaseEntry for GroupBy {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT a, COUNT(*) FROM table WHERE (c = TRUE) and (a <= b) and (a > 0) GROUP BY a"
+        "SELECT a, COUNT(*) FROM bench_table WHERE (c = $1) and (a <= b) and (a > $2) GROUP BY a"
     }
 
-    fn columns(&self) -> &'static [ColumnDefinition] {
-        &[
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
             (
                 "a",
-                ColumnType::Int128,
+                ColumnType::Int,
                 Some(|size| (size / 10).max(10) as i64),
             ),
             (
                 "b",
-                ColumnType::TinyInt,
+                ColumnType::Int,
                 Some(|size| (size / 10).max(10) as i64),
             ),
             ("c", ColumnType::Boolean, None),
         ]
+    }
+
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![LiteralValue::Boolean(true), LiteralValue::Int(0)]
     }
 }
 
@@ -133,11 +171,11 @@ impl BaseEntry for Aggregate {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT SUM(a) FROM table WHERE b = a OR c = 'yz'"
+        "SELECT SUM(a) AS foo, COUNT(1) AS values FROM bench_table WHERE a = b OR c = $1"
     }
 
-    fn columns(&self) -> &'static [ColumnDefinition] {
-        &[
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
             (
                 "a",
                 ColumnType::BigInt,
@@ -145,11 +183,15 @@ impl BaseEntry for Aggregate {
             ),
             (
                 "b",
-                ColumnType::Int,
+                ColumnType::BigInt,
                 Some(|size| (size / 10).max(10) as i64),
             ),
             ("c", ColumnType::VarChar, None),
         ]
+    }
+
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![LiteralValue::VarChar("yz".to_string())]
     }
 }
 
@@ -161,11 +203,11 @@ impl BaseEntry for BooleanFilter {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT * FROM table WHERE c = TRUE and b = 'xyz' or a = 0"
+        "SELECT * FROM bench_table WHERE c = $1 and b = $2 or a = $3"
     }
 
-    fn columns(&self) -> &'static [ColumnDefinition] {
-        &[
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
             (
                 "a",
                 ColumnType::BigInt,
@@ -173,6 +215,14 @@ impl BaseEntry for BooleanFilter {
             ),
             ("b", ColumnType::VarChar, None),
             ("c", ColumnType::Boolean, None),
+        ]
+    }
+
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![
+            LiteralValue::Boolean(true),
+            LiteralValue::VarChar("xyz".to_string()),
+            LiteralValue::BigInt(0),
         ]
     }
 }
@@ -185,11 +235,11 @@ impl BaseEntry for LargeColumnSet {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT * FROM table WHERE b = d"
+        "SELECT * FROM bench_table WHERE b = d"
     }
 
-    fn columns(&self) -> &'static [ColumnDefinition] {
-        &[
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
             ("a", ColumnType::Boolean, None),
             (
                 "b",
@@ -212,7 +262,11 @@ impl BaseEntry for LargeColumnSet {
                 Some(|size| (size / 10).max(10) as i64),
             ),
             ("g", ColumnType::VarChar, None),
-            ("h", ColumnType::Scalar, None),
+            (
+                "h",
+                ColumnType::Decimal75(Precision::new(75).unwrap(), 0),
+                None,
+            ),
         ]
     }
 }
@@ -225,27 +279,34 @@ impl BaseEntry for ComplexCondition {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT * FROM table WHERE (a > c * c AND b < c + 10) OR (d = 'xyz')"
+        "SELECT * FROM bench_table WHERE (a > c * c AND b < c + $1) OR (d = $2)"
     }
 
-    fn columns(&self) -> &'static [ColumnDefinition] {
-        &[
+    fn columns(&self) -> Vec<ColumnDefinition> {
+        vec![
             (
                 "a",
-                ColumnType::BigInt,
+                ColumnType::Int,
                 Some(|size| (size / 10).max(10) as i64),
             ),
             (
                 "b",
-                ColumnType::BigInt,
+                ColumnType::Int,
                 Some(|size| (size / 10).max(10) as i64),
             ),
             (
                 "c",
-                ColumnType::Int128,
+                ColumnType::Int,
                 Some(|size| (size / 10).max(10) as i64),
             ),
             ("d", ColumnType::VarChar, None),
+        ]
+    }
+
+    fn params(&self) -> Vec<LiteralValue> {
+        vec![
+            LiteralValue::Int(10),
+            LiteralValue::VarChar("xyz".to_string()),
         ]
     }
 }
@@ -275,5 +336,5 @@ pub fn all_queries() -> Vec<QueryEntry> {
 pub fn get_query(title: &str) -> Option<QueryEntry> {
     all_queries()
         .into_iter()
-        .find(|(query_title, _, _)| *query_title == title)
+        .find(|(query_title, _, _, _)| *query_title == title)
 }
