@@ -32,7 +32,6 @@ use ark_std::{rand, test_rng};
 use blitzar::{compute::init_backend, proof::InnerProductProof};
 use bumpalo::Bump;
 use clap::{ArgAction, Parser, ValueEnum};
-use curve25519_dalek::RistrettoPoint;
 use datafusion::config::ConfigOptions;
 use halo2curves::bn256::G2Affine;
 use nova_snark::{
@@ -43,20 +42,16 @@ use nova_snark::{
     traits::{commitment::CommitmentEngineTrait, evaluation::EvaluationEngineTrait},
 };
 use proof_of_sql::{
-    base::{
-        commitment::{Commitment, CommitmentEvaluationProof},
-        database::TableRef,
-    },
+    base::{commitment::CommitmentEvaluationProof, database::TableRef},
     proof_primitive::{
         dory::{
-            DoryCommitment, DoryEvaluationProof, DoryProverPublicSetup, DoryVerifierPublicSetup,
-            DynamicDoryCommitment, DynamicDoryEvaluationProof, ProverSetup, PublicParameters,
-            VerifierSetup,
+            DoryEvaluationProof, DoryProverPublicSetup, DoryVerifierPublicSetup,
+            DynamicDoryEvaluationProof, ProverSetup, PublicParameters, VerifierSetup,
         },
         hyperkzg::{
             deserialize_flat_compressed_hyperkzg_public_setup_from_reader,
-            nova_commitment_key_to_hyperkzg_public_setup, HyperKZGCommitment,
-            HyperKZGCommitmentEvaluationProof, HyperKZGEngine,
+            nova_commitment_key_to_hyperkzg_public_setup, HyperKZGCommitmentEvaluationProof,
+            HyperKZGEngine,
         },
     },
     sql::proof::VerifiableQueryResult,
@@ -209,20 +204,15 @@ fn get_rng(cli: &Cli) -> StdRng {
 /// * The query string cannot be parsed into a `QueryExpr`.
 /// * The creation of the `VerifiableQueryResult` fails due to invalid proof expressions.
 /// * If the verification of the `VerifiableQueryResult` fails.
-fn bench_by_schema<'a, C, CP>(
+fn bench_by_schema<CP: CommitmentEvaluationProof>(
     schema: &str,
     cli: &Cli,
     queries: &[QueryEntry],
-    public_setup: &'a C::PublicSetup<'a>,
-    prover_setup: CP::ProverPublicSetup<'a>,
+    prover_setup: CP::ProverPublicSetup<'_>,
     verifier_setup: CP::VerifierPublicSetup<'_>,
-) where
-    C: Commitment,
-    CP: CommitmentEvaluationProof<Commitment = C, Scalar = C::Scalar>,
-    <C as Commitment>::Scalar: 'a,
-{
+) {
     let alloc = Bump::new();
-    let mut accessor: BenchmarkAccessor<'_, C> = BenchmarkAccessor::default();
+    let mut accessor: BenchmarkAccessor<'_, CP::Commitment> = BenchmarkAccessor::default();
     let mut rng = get_rng(cli);
 
     for (query, sql, columns, params) in queries {
@@ -230,7 +220,7 @@ fn bench_by_schema<'a, C, CP>(
         accessor.insert_table(
             TableRef::from_names(None, "bench_table"),
             &generate_random_columns(&alloc, &mut rng, columns, cli.table_size),
-            public_setup,
+            &prover_setup,
         );
 
         let config = ConfigOptions::default();
@@ -302,14 +292,7 @@ fn bench_by_schema<'a, C, CP>(
 /// * `queries` - A slice of query entries to benchmark.
 #[tracing::instrument(name = "Inner Product Proof", level = "debug", skip_all)]
 fn bench_inner_product_proof(cli: &Cli, queries: &[QueryEntry]) {
-    bench_by_schema::<RistrettoPoint, InnerProductProof>(
-        "Inner Product Proof",
-        cli,
-        queries,
-        &(),
-        (),
-        (),
-    );
+    bench_by_schema::<InnerProductProof>("Inner Product Proof", cli, queries, (), ());
 }
 
 /// Loads the Dory public parameters.
@@ -373,11 +356,10 @@ fn bench_dory(cli: &Cli, queries: &[QueryEntry]) {
     let verifier_public_setup = DoryVerifierPublicSetup::new(&verifier_setup, cli.nu_sigma);
     span.exit();
 
-    bench_by_schema::<DoryCommitment, DoryEvaluationProof>(
+    bench_by_schema::<DoryEvaluationProof>(
         "Dory",
         cli,
         queries,
-        &prover_public_setup,
         prover_public_setup,
         verifier_public_setup,
     );
@@ -395,11 +377,10 @@ fn bench_dynamic_dory(cli: &Cli, queries: &[QueryEntry]) {
     let (prover_setup, verifier_setup) = load_dory_setup(&public_parameters, cli);
     span.exit();
 
-    bench_by_schema::<DynamicDoryCommitment, DynamicDoryEvaluationProof>(
+    bench_by_schema::<DynamicDoryEvaluationProof>(
         "Dynamic Dory",
         cli,
         queries,
-        &&prover_setup,
         &prover_setup,
         &verifier_setup,
     );
@@ -442,11 +423,10 @@ fn bench_hyperkzg(cli: &Cli, queries: &[QueryEntry]) {
     };
     span.exit();
 
-    bench_by_schema::<HyperKZGCommitment, HyperKZGCommitmentEvaluationProof>(
+    bench_by_schema::<HyperKZGCommitmentEvaluationProof>(
         "HyperKZG",
         cli,
         queries,
-        &prover_setup.as_slice(),
         &prover_setup,
         &vk,
     );
