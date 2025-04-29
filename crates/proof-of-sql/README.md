@@ -141,14 +141,11 @@ Then, we run the following 10 queries against these data, prove, and verify the 
 * Filter - `SELECT b FROM bench_table WHERE a = 0`
 * Complex Filter - `SELECT * FROM bench_table WHERE (((a = 0) AND (b = 1)) OR ((c = 'a') AND (d = 'b')))`
 * Group By - `SELECT SUM(a), COUNT(*) FROM bench_table WHERE a = 0 GROUP BY b`
+* Join - `SELECT table_a.column, table_b.column FROM table_a JOIN table_b on table_a.column=table_b.column`
 
 ### Results
 
-The results for the `HyperKZG` commitment scheme are shown in the graphs below for a single and multiple A100 machine. Broadly the results are:
-
-* A query against 200 thousand rows of data can be proven in sub-second time.
-* A query against 1 million rows of data can be proven in roughly 1 second.
-* Verification time is roughly 6ms across the board.
+The results for the `HyperKZG` commitment scheme are shown in the graphs below for a single and multiple A100 machine.
 
 <p align="center"><img src="https://raw.githubusercontent.com/spaceandtimelabs/sxt-proof-of-sql/main/docs/HyperKZG_A100_200k_2025.04.29.png" alt="Proof Of SQL Benchmarks (200k - A100)" width="50%"/><img src="https://raw.githubusercontent.com/spaceandtimelabs/sxt-proof-of-sql/main/docs/HyperKZG_multi_A100_200k_2025.04.29.png" alt="Proof Of SQL Benchmarks (200k - Multi-A100)" width="50%"/><img src="https://raw.githubusercontent.com/spaceandtimelabs/sxt-proof-of-sql/main/docs/HyperKZG_A100_2025.04.29.png" alt="Proof Of SQL Benchmarks (10m - A100)" width="50%"/><img src="https://raw.githubusercontent.com/spaceandtimelabs/sxt-proof-of-sql/main/docs/HyperKZG_multi_A100_2025.04.29.png" alt="Proof Of SQL Benchmarks (10m - Multi-A100)" width="50%"/></p>
 
