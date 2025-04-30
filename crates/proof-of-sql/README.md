@@ -137,7 +137,7 @@ a (BIGINT) | b (BIGINT) | c (VARCHAR)
 
 </p>
 
-Then, we run the following 10 queries against these data, prove, and verify the results:
+Then, we run the following 4 queries against these data, prove, and verify the results:
 * Filter - `SELECT b FROM bench_table WHERE a = 0`
 * Complex Filter - `SELECT * FROM bench_table WHERE (((a = 0) AND (b = 1)) OR ((c = 'a') AND (d = 'b')))`
 * Group By - `SELECT SUM(a), COUNT(*) FROM bench_table WHERE a = 0 GROUP BY b`
