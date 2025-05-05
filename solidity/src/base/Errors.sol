@@ -27,8 +27,6 @@ uint32 constant ERR_HYPER_KZG_PAIRING_CHECK_FAILED = 0xa41148a3;
 uint32 constant ERR_CONSTRAINT_DEGREE_TOO_HIGH = 0x8568ae69;
 /// @dev Error code for when the case literal in a switch statement is incorrect.
 uint32 constant ERR_INCORRECT_CASE_CONST = 0x9324fb03;
-/// @dev Error code for when a literal variant is unsupported.
-uint32 constant ERR_UNSUPPORTED_LITERAL_VARIANT = 0xed9d5b00;
 /// @dev Error code for when an index is invalid.
 uint32 constant ERR_INVALID_INDEX = 0x63df8171;
 /// @dev Error code for when a proof expression variant is unsupported.
@@ -82,8 +80,6 @@ library Errors {
     error ConstraintDegreeTooHigh();
     /// @notice Error thrown when the case literal in a switch statement is incorrect.
     error IncorrectCaseConst();
-    /// @notice Error thrown when a literal variant is unsupported.
-    error UnsupportedLiteralVariant();
     /// @notice Error thrown when an index is invalid.
     error InvalidIndex();
     /// @notice Error thrown when a proof expression variant is unsupported.

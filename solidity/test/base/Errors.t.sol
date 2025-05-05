@@ -91,13 +91,6 @@ contract ErrorsTest is Test {
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
-    function testErrorUnsupportedLiteralVariant() public {
-        assert(Errors.UnsupportedLiteralVariant.selector == bytes4(ERR_UNSUPPORTED_LITERAL_VARIANT));
-        vm.expectRevert(Errors.UnsupportedLiteralVariant.selector);
-        Errors.__err(ERR_UNSUPPORTED_LITERAL_VARIANT);
-    }
-
-    /// forge-config: default.allow_internal_expect_revert = true
     function testErrorInvalidIndex() public {
         assert(Errors.InvalidIndex.selector == bytes4(ERR_INVALID_INDEX));
         vm.expectRevert(Errors.InvalidIndex.selector);

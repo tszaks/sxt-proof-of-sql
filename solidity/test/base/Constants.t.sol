@@ -5,6 +5,9 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import "../../src/base/Constants.sol";
 
+/// @dev Invalid variant constant in the repo
+uint32 constant INVALID_VARIANT = 0xFFFFFFFF;
+
 contract ConstantsTest is Test {
     function testModulusMaskIsCorrect() public pure {
         assert(MODULUS > MODULUS_MASK);
