@@ -70,23 +70,19 @@ pub(crate) fn final_round_evaluate_range_check<'a, S: Scalar + 'a>(
     column_data: &[impl Copy + Into<S>],
     alloc: &'a Bump,
 ) {
+    let num_rows = column_data.len();
+
     // Create 31 columns, each will collect the corresponding word from all scalars.
     // 31 because a scalar will only ever have 248 bits of data set.
-    let mut word_columns: Vec<&mut [u8]> =
-        repeat_with(|| alloc.alloc_slice_fill_copy(column_data.len(), 0))
-            .take(31)
-            .collect();
+    let mut word_columns: Vec<&mut [u8]> = repeat_with(|| alloc.alloc_slice_fill_copy(num_rows, 0))
+        .take(31)
+        .collect();
 
     // Allocate space for the eventual inverted word columns by copying word_columns and converting to the required type.
     let mut inverted_word_columns: Vec<&mut [S]> = word_columns
-        .iter_mut()
-        .map(|column| alloc.alloc_slice_fill_with(column.len(), |_| S::ZERO))
+        .iter()
+        .map(|_| alloc.alloc_slice_fill_copy(num_rows, S::ZERO))
         .collect();
-
-    // Initialize a vector to count occurrences of each byte (0-255).
-    // The vector has 256 elements padded with zeros to match the length of the word columns
-    // The size is the larger of 256 or the number of scalars.
-    let word_counts: &mut [i64] = alloc.alloc_slice_fill_with(256, |_| 0);
 
     let span = span!(Level::DEBUG, "decompose scalars in final round").entered();
     decompose_scalars_to_words(column_data, &mut word_columns);
@@ -98,7 +94,10 @@ pub(crate) fn final_round_evaluate_range_check<'a, S: Scalar + 'a>(
         .collect();
 
     let span = span!(Level::DEBUG, "count_word_occurrences in final round").entered();
-    count_word_occurrences(&word_columns_immut, column_data.len(), word_counts);
+    // Initialize a vector to count occurrences of each byte (0-255).
+    // The vector has 256 elements padded with zeros to match the length of the word columns
+    // The size is the larger of 256 or the number of scalars.
+    let word_counts = count_word_occurrences(&word_columns_immut, alloc);
     span.exit();
 
     // Retrieve verifier challenge here, *after* Phase 1
@@ -186,12 +185,14 @@ fn decompose_scalars_to_words<'a, T, S: Scalar + 'a>(
 }
 
 // Count the individual word occurrences in the decomposed columns.
-fn count_word_occurrences(word_columns: &[&[u8]], scalar_count: usize, word_counts: &mut [i64]) {
-    for column in word_columns.iter().take(31) {
-        for &byte in column.iter().take(scalar_count) {
+fn count_word_occurrences<'a>(word_columns: &[&[u8]], alloc: &'a Bump) -> &'a mut [i64] {
+    let word_counts = alloc.alloc_slice_fill_copy(256, 0);
+    for column in word_columns {
+        for &byte in *column {
             word_counts[byte as usize] += 1;
         }
     }
+    word_counts
 }
 
 /// For a word w and a verifier challenge α, compute
@@ -503,8 +504,6 @@ mod tests {
             .map(|column| &mut column[..])
             .collect();
 
-        let mut byte_counts = vec![0; 256];
-
         // Call the decomposer first
         decompose_scalars_to_words::<S, S>(&scalars, &mut word_slices);
 
@@ -514,7 +513,8 @@ mod tests {
             .collect();
 
         // Then do the counting
-        count_word_occurrences(&word_columns_immut, scalars.len(), &mut byte_counts);
+        let alloc = Bump::new();
+        let byte_counts = count_word_occurrences(&word_columns_immut, &alloc);
 
         let mut expected_word_columns = vec![vec![0; scalars.len()]; 31];
         expected_word_columns[0] = vec![1, 2, 3, 255, 0, 1];
@@ -545,13 +545,12 @@ mod tests {
             .map(|column| &mut column[..])
             .collect();
 
-        let mut byte_counts = vec![0; 256];
-
         decompose_scalars_to_words::<S, S>(&scalars, &mut word_slices);
 
         let word_columns_immut: Vec<&[u8]> = word_slices.iter().map(|column| &column[..]).collect();
 
-        count_word_occurrences(&word_columns_immut, scalars.len(), &mut byte_counts);
+        let alloc = Bump::new();
+        let byte_counts = count_word_occurrences(&word_columns_immut, &alloc);
 
         let expected_word_columns = [
             [246, 255, 236],
