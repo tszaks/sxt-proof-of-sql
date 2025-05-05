@@ -55,10 +55,14 @@ library LiteralExpr {
             function read_entry(result_ptr, data_type_variant) -> result_ptr_out, entry {
                 revert(0, 0)
             }
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_data_type(ptr) -> ptr_out, data_type {
+                revert(0, 0)
+            }
 
             function literal_expr_evaluate(expr_ptr, chi_eval) -> expr_ptr_out, eval {
-                let literal_variant := shr(UINT32_PADDING_BITS, calldataload(expr_ptr))
-                expr_ptr := add(expr_ptr, UINT32_SIZE)
+                let literal_variant
+                expr_ptr, literal_variant := read_data_type(expr_ptr)
                 expr_ptr, eval := read_entry(expr_ptr, literal_variant)
                 eval := mulmod(eval, chi_eval, MODULUS)
                 expr_ptr_out := expr_ptr

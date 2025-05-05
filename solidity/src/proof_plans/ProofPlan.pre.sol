@@ -144,6 +144,10 @@ library ProofPlan {
             function read_entry(result_ptr, data_type_variant) -> result_ptr_out, entry {
                 revert(0, 0)
             }
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_data_type(ptr) -> ptr_out, data_type {
+                revert(0, 0)
+            }
 
             function proof_plan_evaluate(plan_ptr, builder_ptr) -> plan_ptr_out, evaluations_ptr {
                 let proof_plan_variant := shr(UINT32_PADDING_BITS, calldataload(plan_ptr))

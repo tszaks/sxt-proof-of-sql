@@ -96,6 +96,10 @@ library ProofExpr {
             function read_entry(result_ptr, data_type_variant) -> result_ptr_out, entry {
                 revert(0, 0)
             }
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_data_type(ptr) -> ptr_out, data_type {
+                revert(0, 0)
+            }
             // IMPORT-YUL EqualsExpr.pre.sol
             function equals_expr_evaluate(expr_ptr, builder_ptr, chi_eval) -> expr_ptr_out, result_eval {
                 revert(0, 0)

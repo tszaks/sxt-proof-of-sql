@@ -5,7 +5,7 @@ pragma solidity ^0.8.28;
 import "forge-std/Test.sol";
 import "../../src/base/DataType.pre.sol";
 import "../base/Constants.t.sol";
-import {FF, F} from "../base/FieldUtil.sol";
+import {F} from "../base/FieldUtil.sol";
 
 contract DataTypeTest is Test {
     function testVariantsMatchEnum() public pure {
