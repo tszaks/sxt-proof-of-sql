@@ -7,7 +7,7 @@ use datafusion::{
     config::ConfigOptions,
     logical_expr::LogicalPlan,
     optimizer::{Analyzer, Optimizer, OptimizerContext, OptimizerRule},
-    sql::planner::SqlToRel,
+    sql::planner::{ParserOptions, SqlToRel},
 };
 use indexmap::IndexSet;
 use proof_of_sql::{
@@ -60,8 +60,14 @@ where
         .iter()
         .map(|ast| -> PlannerResult<T> {
             // 2. Convert the AST into a `LogicalPlan` using `SqlToRel`
-            let raw_logical_plan =
-                SqlToRel::new(&context_provider).sql_statement_to_plan(ast.clone())?;
+            let raw_logical_plan = SqlToRel::new_with_options(
+                &context_provider,
+                ParserOptions {
+                    parse_float_as_decimal: config.sql_parser.parse_float_as_decimal,
+                    enable_ident_normalization: config.sql_parser.enable_ident_normalization,
+                },
+            )
+            .sql_statement_to_plan(ast.clone())?;
             // 3. Analyze the `LogicalPlan` using `Analyzer`
             let analyzer = Analyzer::new();
             let analyzed_logical_plan =
