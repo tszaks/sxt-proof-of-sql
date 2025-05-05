@@ -46,6 +46,14 @@ library ResultVerifier {
             function compute_evaluation_vec(length, evaluation_point_ptr) -> evaluations_ptr {
                 revert(0, 0)
             }
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_entry(result_ptr, data_type_variant) -> result_ptr_out, entry {
+                revert(0, 0)
+            }
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_data_type(ptr) -> ptr_out, data_type {
+                revert(0, 0)
+            }
 
             function verify_result_evaluations(result_ptr, evaluation_point_ptr, evaluations_ptr) {
                 let num_columns := shr(UINT64_PADDING_BITS, calldataload(result_ptr))
@@ -64,15 +72,11 @@ library ResultVerifier {
 
                     let value := mload(evaluations_ptr)
                     evaluations_ptr := add(evaluations_ptr, WORD_SIZE)
-                    let column_variant := shr(UINT32_PADDING_BITS, calldataload(result_ptr))
-                    result_ptr := add(result_ptr, UINT32_SIZE)
 
+                    let data_type_variant
+                    result_ptr, data_type_variant := read_data_type(result_ptr)
                     let column_length := shr(UINT64_PADDING_BITS, calldataload(result_ptr))
                     result_ptr := add(result_ptr, UINT64_SIZE)
-
-                    switch column_variant
-                    case 0 { case_const(0, COLUMN_BIGINT_VARIANT) }
-                    default { err(ERR_UNSUPPORTED_LITERAL_VARIANT) }
 
                     if first {
                         first := 0
@@ -84,16 +88,7 @@ library ResultVerifier {
                     value := mulmod(MODULUS_MINUS_ONE, value, MODULUS)
                     for { let i := 0 } sub(table_len, i) { i := add(i, 1) } {
                         let entry
-                        switch column_variant
-                        case 0 {
-                            case_const(0, COLUMN_BIGINT_VARIANT)
-                            entry :=
-                                add(
-                                    MODULUS,
-                                    signextend(INT64_SIZE_MINUS_ONE, shr(INT64_PADDING_BITS, calldataload(result_ptr)))
-                                )
-                            result_ptr := add(result_ptr, INT64_SIZE)
-                        }
+                        result_ptr, entry := read_entry(result_ptr, data_type_variant)
                         value := addmod(value, mulmod(entry, mload(add(eval_vec, mul(i, WORD_SIZE))), MODULUS), MODULUS)
                     }
                     if value { err(ERR_INCORRECT_RESULT) }

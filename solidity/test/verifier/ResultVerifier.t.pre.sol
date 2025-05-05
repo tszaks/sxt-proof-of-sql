@@ -7,6 +7,7 @@ import "../../src/base/Constants.sol";
 import {Errors} from "../../src/base/Errors.sol";
 import "../../src/base/LagrangeBasisEvaluation.pre.sol";
 import {ResultVerifier} from "../../src/verifier/ResultVerifier.pre.sol";
+import "../base/Constants.t.sol";
 import {FF, F} from "../base/FieldUtil.sol";
 
 contract ResultVerifierTest is Test {
@@ -70,7 +71,7 @@ contract ResultVerifierTest is Test {
         table[1][1] = 5;
         table[1][2] = -6;
 
-        bytes memory result = generateResult(table, columnNames, 0, COLUMN_BIGINT_VARIANT);
+        bytes memory result = generateResult(table, columnNames, 0, DATA_TYPE_BIGINT_VARIANT);
 
         uint256[] memory evaluationPoint = new uint256[](2);
         evaluationPoint[0] = 101;
@@ -101,7 +102,7 @@ contract ResultVerifierTest is Test {
         table[1][1] = 5;
         table[1][2] = -6;
 
-        bytes memory result = generateResult(table, columnNames, 0, COLUMN_BIGINT_VARIANT);
+        bytes memory result = generateResult(table, columnNames, 0, DATA_TYPE_BIGINT_VARIANT);
 
         uint256[] memory evaluationPoint = new uint256[](2);
         evaluationPoint[0] = 101;
@@ -134,7 +135,7 @@ contract ResultVerifierTest is Test {
         table[1][1] = 5;
         table[1][2] = -6;
 
-        bytes memory result = generateResult(table, columnNames, 0, COLUMN_BIGINT_VARIANT);
+        bytes memory result = generateResult(table, columnNames, 0, DATA_TYPE_BIGINT_VARIANT);
 
         uint256[] memory evaluationPoint = new uint256[](2);
         evaluationPoint[0] = 101;
@@ -168,7 +169,7 @@ contract ResultVerifierTest is Test {
         table[1][1] = 5;
         table[1][2] = -6;
 
-        bytes memory result = generateResult(table, columnNames, 1, COLUMN_BIGINT_VARIANT);
+        bytes memory result = generateResult(table, columnNames, 1, DATA_TYPE_BIGINT_VARIANT);
 
         uint256[] memory evaluationPoint = new uint256[](2);
         evaluationPoint[0] = 101;
@@ -180,7 +181,7 @@ contract ResultVerifierTest is Test {
         ResultVerifier.__verifyResultEvaluations(result, evaluationPoint, evaluations);
     }
 
-    function testInvalidColumnTypeInResult() public {
+    function testInvalidDataTypeInResult() public {
         uint64 numberOfColumns = 2;
         uint64 numberOfRows = 3;
 
@@ -200,7 +201,7 @@ contract ResultVerifierTest is Test {
         table[1][1] = 5;
         table[1][2] = -6;
 
-        bytes memory result = generateResult(table, columnNames, 0, 1);
+        bytes memory result = generateResult(table, columnNames, 0, INVALID_VARIANT);
 
         uint256[] memory evaluationPoint = new uint256[](2);
         evaluationPoint[0] = 101;
@@ -208,7 +209,7 @@ contract ResultVerifierTest is Test {
 
         uint256[] memory evaluations = evaluateTable(table, evaluationPoint);
 
-        vm.expectRevert(Errors.UnsupportedLiteralVariant.selector);
+        vm.expectRevert(Errors.UnsupportedDataTypeVariant.selector);
         ResultVerifier.__verifyResultEvaluations(result, evaluationPoint, evaluations);
     }
 
@@ -232,7 +233,7 @@ contract ResultVerifierTest is Test {
         table[1][0] = -4;
         table[1][1] = 5;
 
-        bytes memory result = generateResult(table, columnNames, 0, COLUMN_BIGINT_VARIANT);
+        bytes memory result = generateResult(table, columnNames, 0, DATA_TYPE_BIGINT_VARIANT);
 
         uint256[] memory evaluationPoint = new uint256[](2);
         evaluationPoint[0] = 101;
@@ -269,7 +270,7 @@ contract ResultVerifierTest is Test {
             }
         }
 
-        bytes memory result = generateResult(table, columnNames, 0, COLUMN_BIGINT_VARIANT);
+        bytes memory result = generateResult(table, columnNames, 0, DATA_TYPE_BIGINT_VARIANT);
 
         uint256[] memory evaluations = evaluateTable(table, evaluationPoint);
 

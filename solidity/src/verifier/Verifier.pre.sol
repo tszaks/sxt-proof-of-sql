@@ -455,6 +455,16 @@ library Verifier {
                 revert(0, 0)
             }
 
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_entry(result_ptr, data_type_variant) -> result_ptr_out, entry {
+                revert(0, 0)
+            }
+
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_data_type(ptr) -> ptr_out, data_type {
+                revert(0, 0)
+            }
+
             // IMPORT-YUL ResultVerifier.pre.sol
             function verify_result_evaluations(result_ptr, evaluation_point_ptr, evaluations_ptr) {
                 revert(0, 0)

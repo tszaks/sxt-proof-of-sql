@@ -51,21 +51,16 @@ library LiteralExpr {
             function case_const(lhs, rhs) {
                 revert(0, 0)
             }
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_entry(result_ptr, data_type_variant) -> result_ptr_out, entry {
+                revert(0, 0)
+            }
 
             function literal_expr_evaluate(expr_ptr, chi_eval) -> expr_ptr_out, eval {
                 let literal_variant := shr(UINT32_PADDING_BITS, calldataload(expr_ptr))
                 expr_ptr := add(expr_ptr, UINT32_SIZE)
-
-                switch literal_variant
-                case 0 {
-                    case_const(0, LITERAL_BIGINT_VARIANT)
-                    eval :=
-                        add(signextend(INT64_SIZE_MINUS_ONE, shr(INT64_PADDING_BITS, calldataload(expr_ptr))), MODULUS)
-                    expr_ptr := add(expr_ptr, INT64_SIZE)
-                }
-                default { err(ERR_UNSUPPORTED_LITERAL_VARIANT) }
+                expr_ptr, eval := read_entry(expr_ptr, literal_variant)
                 eval := mulmod(eval, chi_eval, MODULUS)
-
                 expr_ptr_out := expr_ptr
             }
             let __exprOutOffset
