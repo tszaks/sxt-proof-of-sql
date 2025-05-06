@@ -105,14 +105,8 @@ pub(crate) fn final_round_evaluate_range_check<'a, S: Scalar + 'a>(
 
     // avoids usize to u8 cast
     let word_val_table = alloc.alloc_slice_fill_iter(0u8..=255);
-    let mut inv_word_values_plus_alpha_table = [S::ZERO; 256];
-    for i in 0u8..=255 {
-        inv_word_values_plus_alpha_table[i as usize] = S::from(&i);
-    }
-    let inv_word_vals_plus_alpha_table: &mut [S] = alloc
-        .alloc_slice_fill_with(inv_word_values_plus_alpha_table.len(), |i| {
-            inv_word_values_plus_alpha_table[i]
-        });
+    let inv_word_vals_plus_alpha_table: &mut [S] =
+        alloc.alloc_slice_fill_iter((0..256).map(S::from));
     // Add alpha, batch invert, etc.
     slice_ops::add_const::<S, S>(inv_word_vals_plus_alpha_table, alpha);
     slice_ops::batch_inversion(inv_word_vals_plus_alpha_table);
