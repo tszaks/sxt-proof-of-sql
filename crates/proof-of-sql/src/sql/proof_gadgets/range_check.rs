@@ -79,12 +79,6 @@ pub(crate) fn final_round_evaluate_range_check<'a, S: Scalar + 'a>(
         .take(31)
         .collect();
 
-    // Allocate space for the eventual inverted word columns by copying word_columns and converting to the required type.
-    let mut inverted_word_columns: Vec<&mut [S]> = word_columns
-        .iter()
-        .map(|_| alloc.alloc_slice_fill_copy(num_rows, S::ZERO))
-        .collect();
-
     let span = span!(Level::DEBUG, "decompose scalars in final round").entered();
     decompose_scalars_to_words(column_data, &mut word_columns);
     span.exit();
@@ -113,12 +107,11 @@ pub(crate) fn final_round_evaluate_range_check<'a, S: Scalar + 'a>(
     slice_ops::batch_inversion(inv_word_vals_plus_alpha_table);
 
     let span = span!(Level::DEBUG, "get_logarithmic_derivative in final round").entered();
-    get_logarithmic_derivative(
+    let inverted_word_columns = get_logarithmic_derivative(
         builder,
         alloc,
         &word_columns_immut,
         alpha,
-        &mut inverted_word_columns,
         inv_word_vals_plus_alpha_table,
     );
     span.exit();
@@ -139,7 +132,7 @@ pub(crate) fn final_round_evaluate_range_check<'a, S: Scalar + 'a>(
         word_counts,
         alloc,
         column_data,
-        &inverted_word_columns,
+        inverted_word_columns,
         inv_word_vals_plus_alpha_table,
     );
 }
@@ -229,40 +222,38 @@ fn get_logarithmic_derivative<'a, S: Scalar + 'a>(
     alloc: &'a Bump,
     word_columns: &[&'a [u8]],
     alpha: S,
-    inverted_word_columns: &mut [&mut [S]],
     inv_word_vals_plus_alpha_table: &[S],
-) {
-    let num_columns = word_columns.len();
+) -> Vec<&'a [S]> {
     let span = span!(Level::DEBUG, "get_logarithmic_derivative total loop time").entered();
 
-    for col_index in 0..num_columns {
-        let byte_column = word_columns[col_index];
-        let inv_column = &mut inverted_word_columns[col_index];
-        let column_length = byte_column.len();
+    let res: Vec<_> = word_columns
+        .iter()
+        .map(|byte_column| {
+            let column_length = byte_column.len();
 
-        let words_inv = alloc.alloc_slice_fill_with(column_length, |row_index| {
-            inv_word_vals_plus_alpha_table[byte_column[row_index] as usize]
-        });
+            let words_inv = alloc.alloc_slice_fill_with(column_length, |row_index| {
+                inv_word_vals_plus_alpha_table[byte_column[row_index] as usize]
+            });
+            let words_inv = words_inv as &[_];
+            builder.produce_intermediate_mle(words_inv);
 
-        builder.produce_intermediate_mle(words_inv as &[_]);
-
-        inv_column.copy_from_slice(words_inv);
-
-        let chi_n = alloc.alloc_slice_fill_copy(inverted_word_columns[0].len(), true) as &[_];
-
-        builder.produce_sumcheck_subpolynomial(
-            SumcheckSubpolynomialType::Identity,
-            vec![
-                (alpha, vec![Box::new(words_inv as &[_])]),
-                (
-                    S::one(),
-                    vec![Box::new(byte_column as &[_]), Box::new(words_inv as &[_])],
-                ),
-                (-S::one(), vec![Box::new(chi_n as &[_])]),
-            ],
-        );
-    }
+            let chi_n = alloc.alloc_slice_fill_copy(column_length, true) as &[_];
+            builder.produce_sumcheck_subpolynomial(
+                SumcheckSubpolynomialType::Identity,
+                vec![
+                    (alpha, vec![Box::new(words_inv)]),
+                    (
+                        S::one(),
+                        vec![Box::new(byte_column as &[_]), Box::new(words_inv)],
+                    ),
+                    (-S::one(), vec![Box::new(chi_n as &[_])]),
+                ],
+            );
+            words_inv
+        })
+        .collect();
     span.exit();
+    res
 }
 
 /// Produce the range of possible values that a word can take on,
@@ -347,7 +338,7 @@ fn prove_row_zero_sum<'a, S: Scalar + 'a>(
     word_counts: &'a mut [i64],
     alloc: &'a Bump,
     column_data: &[impl Into<S>],
-    inverted_word_columns: &[&mut [S]],
+    inverted_word_columns: Vec<&[S]>,
     word_vals_plus_alpha_inv: &'a [S],
 ) {
     // Produce an MLE over the counts of each word value
@@ -616,16 +607,6 @@ mod tests {
 
         let alpha = S::from(5);
 
-        // Initialize the inverted_word_columns_plus_alpha vector
-        let mut inverted_word_columns_plus_alpha: Vec<Vec<S>> =
-            vec![vec![S::ZERO; scalars.len()]; 31];
-
-        // Convert Vec<Vec<S>> into Vec<&mut [S]> for use in get_logarithmic_derivative
-        let mut word_columns_from_log_deriv: Vec<&mut [S]> = inverted_word_columns_plus_alpha
-            .iter_mut()
-            .map(Vec::as_mut_slice)
-            .collect();
-
         let alloc = Bump::new();
         let mut builder = FinalRoundBuilder::new(2, VecDeque::new());
 
@@ -640,12 +621,11 @@ mod tests {
         slice_ops::add_const::<S, S>(&mut table_plus_alpha, alpha);
         slice_ops::batch_inversion(&mut table_plus_alpha);
 
-        get_logarithmic_derivative(
+        let word_columns_from_log_deriv = get_logarithmic_derivative(
             &mut builder,
             &alloc,
             &word_columns.iter().map(|col| &col[..]).collect::<Vec<_>>(),
             alpha,
-            &mut word_columns_from_log_deriv,
             &table_plus_alpha,
         );
 
@@ -728,14 +708,6 @@ mod tests {
         // 1 / (word + alpha)
         let alpha = S::from(5);
 
-        let mut inverted_word_columns_plus_alpha: Vec<Vec<S>> =
-            vec![vec![S::ZERO; scalars.len()]; 31];
-        // Convert Vec<Vec<S>> into Vec<&mut [S]> for use in get_logarithmic_derivative
-        let mut word_columns_from_log_deriv: Vec<&mut [S]> = inverted_word_columns_plus_alpha
-            .iter_mut()
-            .map(Vec::as_mut_slice)
-            .collect();
-
         let alloc = Bump::new();
         let mut builder = FinalRoundBuilder::new(2, VecDeque::new());
 
@@ -749,12 +721,12 @@ mod tests {
         slice_ops::add_const::<S, S>(&mut table_plus_alpha, alpha);
         slice_ops::batch_inversion(&mut table_plus_alpha);
 
-        get_logarithmic_derivative(
+        // Convert Vec<Vec<S>> into Vec<&mut [S]> for use in get_logarithmic_derivative
+        let word_columns_from_log_deriv = get_logarithmic_derivative(
             &mut builder,
             &alloc,
             &word_columns.iter().map(|col| &col[..]).collect::<Vec<_>>(),
             alpha,
-            &mut word_columns_from_log_deriv,
             &table_plus_alpha,
         );
 
