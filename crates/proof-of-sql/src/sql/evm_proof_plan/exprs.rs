@@ -188,10 +188,16 @@ impl EVMLiteralExpr {
             LiteralValue::Int128(value) => EVMLiteralExpr::Int128(*value),
             LiteralValue::Decimal75(precision, scale, value) => {
                 // Convert I256 to [u64; 4] for serialization
-                let limbs = value.raw(); // Access the internal [u64; 4] representation
-                EVMLiteralExpr::Decimal75(precision.value(), *scale, limbs)
+                let limbs = value.limbs(); // Access the internal [u64; 4] representation
+                EVMLiteralExpr::Decimal75(
+                    precision.value(),
+                    *scale,
+                    [limbs[3], limbs[2], limbs[1], limbs[0]],
+                )
             }
-            LiteralValue::Scalar(limbs) => EVMLiteralExpr::Scalar(*limbs),
+            LiteralValue::Scalar(limbs) => {
+                EVMLiteralExpr::Scalar([limbs[3], limbs[2], limbs[1], limbs[0]])
+            }
             LiteralValue::TimeStampTZ(unit, timezone, value) => {
                 // Convert unit to u64 (its precision value)
                 let unit_value: u64 = (*unit).into();
@@ -226,7 +232,7 @@ impl EVMLiteralExpr {
             EVMLiteralExpr::Int128(value) => Ok(LiteralExpr::new(LiteralValue::Int128(*value))),
             EVMLiteralExpr::Decimal75(precision, scale, limbs) => {
                 // Convert [u64; 4] back to I256
-                let value = I256::new(*limbs);
+                let value = I256::new([limbs[3], limbs[2], limbs[1], limbs[0]]);
                 // Create precision, propagating any error
                 let precision_obj = Precision::new(*precision)
                     .map_err(|e| EVMProofPlanError::DecimalError { source: e })?;
@@ -236,7 +242,9 @@ impl EVMLiteralExpr {
                     value,
                 )))
             }
-            EVMLiteralExpr::Scalar(limbs) => Ok(LiteralExpr::new(LiteralValue::Scalar(*limbs))),
+            EVMLiteralExpr::Scalar(limbs) => Ok(LiteralExpr::new(LiteralValue::Scalar([
+                limbs[3], limbs[2], limbs[1], limbs[0],
+            ]))),
             EVMLiteralExpr::TimeStampTZ(unit_value, timezone_offset, value) => {
                 // Convert u64 back to PoSQLTimeUnit based on precision
                 let unit = match *unit_value {
@@ -735,8 +743,8 @@ mod tests {
         if let EVMLiteralExpr::Decimal75(p, s, limbs) = evm_literal_expr {
             assert_eq!(p, precision.value());
             assert_eq!(s, scale);
-            // Use the raw() method to access the private field
-            assert_eq!(limbs, value.raw());
+            // Use the limbs() method to access the private field
+            assert_eq!([limbs[3], limbs[2], limbs[1], limbs[0]], value.limbs());
 
             let roundtripped = EVMLiteralExpr::Decimal75(p, s, limbs)
                 .try_to_proof_expr()
@@ -744,7 +752,7 @@ mod tests {
             if let LiteralValue::Decimal75(rp, rs, rv) = *roundtripped.value() {
                 assert_eq!(rp.value(), precision.value());
                 assert_eq!(rs, scale);
-                assert_eq!(rv.raw(), value.raw());
+                assert_eq!(rv.limbs(), value.limbs());
             } else {
                 panic!("Expected Decimal75 value after roundtrip");
             }
@@ -757,9 +765,10 @@ mod tests {
     fn we_can_put_a_scalar_literal_expr_in_evm() {
         // Test Scalar
         let limbs: [u64; 4] = [1, 2, 3, 4];
+        let be_limbs: [u64; 4] = [4, 3, 2, 1];
         let evm_literal_expr =
             EVMLiteralExpr::try_from_proof_expr(&LiteralExpr::new(LiteralValue::Scalar(limbs)));
-        assert_eq!(evm_literal_expr, EVMLiteralExpr::Scalar(limbs));
+        assert_eq!(evm_literal_expr, EVMLiteralExpr::Scalar(be_limbs));
         let roundtripped = evm_literal_expr.try_to_proof_expr().unwrap();
         assert_eq!(*roundtripped.value(), LiteralValue::Scalar(limbs));
     }

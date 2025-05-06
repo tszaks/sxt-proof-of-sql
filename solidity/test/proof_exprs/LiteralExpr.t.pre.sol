@@ -34,7 +34,6 @@ contract LiteralExprTest is Test {
 
     function testFuzzInvalidLiteralVariant(uint32 variant) public {
         vm.assume(variant != DATA_TYPE_BIGINT_VARIANT);
-        vm.assume(variant != 0);
         bytes memory exprIn = abi.encodePacked(variant, int64(2), hex"abcdef");
         vm.expectRevert(Errors.UnsupportedDataTypeVariant.selector);
         LiteralExpr.__literalExprEvaluate(exprIn, 3);

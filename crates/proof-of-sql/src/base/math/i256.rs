@@ -26,9 +26,9 @@ impl I256 {
         Self(limbs)
     }
 
-    /// Get the raw internal representation of the I256.
+    /// Get the limbs of the `I256` as a `[u64; 4]`.
     #[must_use]
-    pub(crate) fn raw(&self) -> [u64; 4] {
+    pub(crate) fn limbs(&self) -> [u64; 4] {
         self.0
     }
     #[must_use]
