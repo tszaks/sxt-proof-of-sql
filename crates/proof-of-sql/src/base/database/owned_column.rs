@@ -24,8 +24,6 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 /// Supported types for [`OwnedColumn`]
 pub enum OwnedColumn<S: Scalar> {
-    /// i64 columns
-    BigInt(Vec<i64>),
     /// Boolean columns
     Boolean(Vec<bool>),
     /// u8 columns
@@ -36,6 +34,8 @@ pub enum OwnedColumn<S: Scalar> {
     SmallInt(Vec<i16>),
     /// i32 columns
     Int(Vec<i32>),
+    /// i64 columns
+    BigInt(Vec<i64>),
     /// String columns
     VarChar(Vec<String>),
     /// Variable length binary columns

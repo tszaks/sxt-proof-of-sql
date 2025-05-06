@@ -1,4 +1,4 @@
-use crate::sql::AnalyzeError;
+use crate::{base::math::decimal::DecimalError, sql::AnalyzeError};
 use snafu::Snafu;
 
 /// Represents errors that can occur in the EVM proof plan module.
@@ -19,6 +19,15 @@ pub(crate) enum EVMProofPlanError {
     /// Error indicating that the output column name is invalid or missing.
     #[snafu(display("invalid or missing output column name"))]
     InvalidOutputColumnName,
+    /// Error indicating an invalid time unit was provided.
+    #[snafu(display("invalid time unit"))]
+    InvalidTimeUnit,
+    /// Decimal error
+    #[snafu(transparent)]
+    DecimalError {
+        /// The underlying source error
+        source: DecimalError,
+    },
     /// Analyze error
     #[snafu(transparent)]
     AnalyzeError {

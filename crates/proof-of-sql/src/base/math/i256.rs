@@ -25,6 +25,12 @@ impl I256 {
     pub fn new(limbs: [u64; 4]) -> Self {
         Self(limbs)
     }
+
+    /// Get the raw internal representation of the I256.
+    #[must_use]
+    pub(crate) fn raw(&self) -> [u64; 4] {
+        self.0
+    }
     #[must_use]
     /// Conversion into a [Scalar] type. The conversion handles negative values. In other words, `-1` maps to `-S::ONE`.
     ///

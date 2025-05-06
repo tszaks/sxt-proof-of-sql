@@ -9,6 +9,11 @@ import "./SwitchUtil.pre.sol";
 /// @dev Library providing parsing utilities for different data types
 library DataType {
     enum DataTypeKind {
+        Boolean,
+        Uint8,
+        TinyInt,
+        SmallInt,
+        Int,
         BigInt
     }
 
@@ -44,8 +49,8 @@ library DataType {
             function read_entry(result_ptr, data_type_variant) -> result_ptr_out, entry {
                 result_ptr_out := result_ptr
                 switch data_type_variant
-                case 0 {
-                    case_const(0, DATA_TYPE_BIGINT_VARIANT)
+                case 5 {
+                    case_const(5, DATA_TYPE_BIGINT_VARIANT)
                     entry :=
                         add(MODULUS, signextend(INT64_SIZE_MINUS_ONE, shr(INT64_PADDING_BITS, calldataload(result_ptr))))
                     result_ptr_out := add(result_ptr, INT64_SIZE)
@@ -92,7 +97,7 @@ library DataType {
                 data_type := shr(UINT32_PADDING_BITS, calldataload(ptr))
                 ptr_out := add(ptr, UINT32_SIZE)
                 switch data_type
-                case 0 { case_const(0, DATA_TYPE_BIGINT_VARIANT) }
+                case 5 { case_const(5, DATA_TYPE_BIGINT_VARIANT) }
                 default { err(ERR_UNSUPPORTED_DATA_TYPE_VARIANT) }
             }
 
