@@ -74,7 +74,7 @@ uint32 constant NOT_EXPR_VARIANT = 8;
 uint32 constant FILTER_EXEC_VARIANT = 0;
 
 /// @dev BigInt variant constant for column types
-uint32 constant DATA_TYPE_BIGINT_VARIANT = 0;
+uint32 constant DATA_TYPE_BIGINT_VARIANT = 5;
 
 /// @dev Position of the free memory pointer in the context of the EVM memory.
 uint256 constant FREE_PTR = 0x40;

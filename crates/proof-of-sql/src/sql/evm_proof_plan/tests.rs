@@ -93,7 +93,7 @@ fn we_can_generate_serialized_proof_plan_for_simple_filter() {
         .chain(&0_u32.to_be_bytes()) //       lhs - ColumnExpr
         .chain(&1_usize.to_be_bytes()) //       column_number
         .chain(&1_u32.to_be_bytes()) //       rhs - LiteralExpr
-        .chain(&0_u32.to_be_bytes()) //         type
+        .chain(&5_u32.to_be_bytes()) //         type
         .chain(&5_i64.to_be_bytes()) //         value
         .chain(&1_usize.to_be_bytes()) //   results.len()
         .chain(&0_u32.to_be_bytes()) //     results[0] - ColumnExpr
@@ -153,7 +153,7 @@ fn we_can_deserialize_proof_plan_for_simple_filter() {
         .chain(&0_u32.to_be_bytes()) //       lhs - ColumnExpr
         .chain(&1_usize.to_be_bytes()) //       column_number
         .chain(&1_u32.to_be_bytes()) //       rhs - LiteralExpr
-        .chain(&0_u32.to_be_bytes()) //         type
+        .chain(&5_u32.to_be_bytes()) //         type
         .chain(&5_i64.to_be_bytes()) //         value
         .chain(&1_usize.to_be_bytes()) //   results.len()
         .chain(&0_u32.to_be_bytes()) //     results[0] - ColumnExpr

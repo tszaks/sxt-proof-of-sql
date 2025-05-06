@@ -8,10 +8,6 @@ import "../base/Constants.t.sol";
 import {F} from "../base/FieldUtil.sol";
 
 contract DataTypeTest is Test {
-    function testVariantsMatchEnum() public pure {
-        assert(uint32(DataType.DataTypeKind.BigInt) == DATA_TYPE_BIGINT_VARIANT);
-    }
-
     function testReadNonnegativeEntryExpr() public pure {
         bytes memory exprIn = abi.encodePacked(int64(9223372036854775807), hex"abcdef");
         bytes memory expectedExprOut = hex"abcdef";

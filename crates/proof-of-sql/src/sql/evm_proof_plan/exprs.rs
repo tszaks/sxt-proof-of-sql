@@ -3,13 +3,15 @@ use crate::{
     base::{
         database::{ColumnRef, LiteralValue},
         map::IndexSet,
+        math::{decimal::Precision, i256::I256},
+        posql_time::{PoSQLTimeUnit, PoSQLTimeZone},
     },
     sql::proof_exprs::{
         AddExpr, AndExpr, ColumnExpr, DynProofExpr, EqualsExpr, LiteralExpr, MultiplyExpr, NotExpr,
         OrExpr, SubtractExpr,
     },
 };
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::String, vec::Vec};
 use serde::{Deserialize, Serialize};
 
 /// Represents an expression that can be serialized for EVM.
@@ -36,7 +38,7 @@ impl EVMDynProofExpr {
                 EVMColumnExpr::try_from_proof_expr(column_expr, column_refs).map(Self::Column)
             }
             DynProofExpr::Literal(literal_expr) => {
-                EVMLiteralExpr::try_from_proof_expr(literal_expr).map(Self::Literal)
+                Ok(Self::Literal(EVMLiteralExpr::from_proof_expr(literal_expr)))
             }
             DynProofExpr::Equals(equals_expr) => {
                 EVMEqualsExpr::try_from_proof_expr(equals_expr, column_refs).map(Self::Equals)
@@ -136,28 +138,99 @@ impl EVMColumnExpr {
     }
 }
 
-/// Represents a literal expression.
+/// Represents a literal expression that can be serialized for EVM.
+///
+/// This enum corresponds to the variants in `LiteralValue` that can be represented in EVM.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) enum EVMLiteralExpr {
+    /// Boolean literals
+    Boolean(bool),
+    /// u8 literals
+    Uint8(u8),
+    /// i8 literals
+    TinyInt(i8),
+    /// i16 literals
+    SmallInt(i16),
+    /// i32 literals
+    Int(i32),
+    /// i64 literals
     BigInt(i64),
+    /// String literals (stored with its string value)
+    VarChar(String),
+    /// Binary data literals
+    VarBinary(Vec<u8>),
+    /// i128 literals
+    Int128(i128),
+    /// Decimal literals with precision (max 75), scale, and 256-bit value as limbs
+    Decimal75(Precision, i8, [u64; 4]),
+    /// Scalar literals
+    Scalar([u64; 4]),
+    /// `TimeStamp` defined over a unit and timezone with backing store
+    /// For `TimeStampTZ`, we store:
+    /// - `unit`: The time unit (Second, Millisecond, Microsecond, Nanosecond)
+    /// - `timezone`: The timezone as an offset in seconds from UTC
+    /// - timestamp: time units since unix epoch
+    TimeStampTZ(PoSQLTimeUnit, PoSQLTimeZone, i64),
 }
-impl EVMLiteralExpr {
-    #[expect(dead_code)]
-    pub(crate) fn new(value: i64) -> Self {
-        Self::BigInt(value)
-    }
 
-    /// Try to create a `EVMLiteralExpr` from a `LiteralExpr`.
-    pub(crate) fn try_from_proof_expr(expr: &LiteralExpr) -> EVMProofPlanResult<Self> {
+impl EVMLiteralExpr {
+    /// Create a `EVMLiteralExpr` from a `LiteralExpr`.
+    pub(crate) fn from_proof_expr(expr: &LiteralExpr) -> Self {
         match expr.value() {
-            LiteralValue::BigInt(value) => Ok(EVMLiteralExpr::BigInt(*value)),
-            _ => Err(EVMProofPlanError::NotSupported),
+            LiteralValue::Boolean(value) => EVMLiteralExpr::Boolean(*value),
+            LiteralValue::Uint8(value) => EVMLiteralExpr::Uint8(*value),
+            LiteralValue::TinyInt(value) => EVMLiteralExpr::TinyInt(*value),
+            LiteralValue::SmallInt(value) => EVMLiteralExpr::SmallInt(*value),
+            LiteralValue::Int(value) => EVMLiteralExpr::Int(*value),
+            LiteralValue::BigInt(value) => EVMLiteralExpr::BigInt(*value),
+            LiteralValue::VarChar(value) => EVMLiteralExpr::VarChar(value.clone()),
+            LiteralValue::VarBinary(value) => EVMLiteralExpr::VarBinary(value.clone()),
+            LiteralValue::Int128(value) => EVMLiteralExpr::Int128(*value),
+            LiteralValue::Decimal75(precision, scale, value) => {
+                // Convert I256 to [u64; 4] for serialization
+                let limbs = value.limbs(); // Access the internal [u64; 4] representation
+                EVMLiteralExpr::Decimal75(
+                    *precision,
+                    *scale,
+                    [limbs[3], limbs[2], limbs[1], limbs[0]],
+                )
+            }
+            LiteralValue::Scalar(limbs) => {
+                EVMLiteralExpr::Scalar([limbs[3], limbs[2], limbs[1], limbs[0]])
+            }
+            LiteralValue::TimeStampTZ(unit, timezone, value) => {
+                EVMLiteralExpr::TimeStampTZ(*unit, *timezone, *value)
+            }
         }
     }
 
+    /// Convert back to a `LiteralExpr`
     pub(crate) fn to_proof_expr(&self) -> LiteralExpr {
         match self {
+            EVMLiteralExpr::Boolean(value) => LiteralExpr::new(LiteralValue::Boolean(*value)),
+            EVMLiteralExpr::Uint8(value) => LiteralExpr::new(LiteralValue::Uint8(*value)),
+            EVMLiteralExpr::TinyInt(value) => LiteralExpr::new(LiteralValue::TinyInt(*value)),
+            EVMLiteralExpr::SmallInt(value) => LiteralExpr::new(LiteralValue::SmallInt(*value)),
+            EVMLiteralExpr::Int(value) => LiteralExpr::new(LiteralValue::Int(*value)),
             EVMLiteralExpr::BigInt(value) => LiteralExpr::new(LiteralValue::BigInt(*value)),
+            EVMLiteralExpr::VarChar(value) => {
+                LiteralExpr::new(LiteralValue::VarChar(value.clone()))
+            }
+            EVMLiteralExpr::VarBinary(value) => {
+                LiteralExpr::new(LiteralValue::VarBinary(value.clone()))
+            }
+            EVMLiteralExpr::Int128(value) => LiteralExpr::new(LiteralValue::Int128(*value)),
+            EVMLiteralExpr::Decimal75(precision, scale, limbs) => {
+                // Convert [u64; 4] back to I256
+                let value = I256::new([limbs[3], limbs[2], limbs[1], limbs[0]]);
+                LiteralExpr::new(LiteralValue::Decimal75(*precision, *scale, value))
+            }
+            EVMLiteralExpr::Scalar(limbs) => LiteralExpr::new(LiteralValue::Scalar([
+                limbs[3], limbs[2], limbs[1], limbs[0],
+            ])),
+            EVMLiteralExpr::TimeStampTZ(unit, timezone, value) => {
+                LiteralExpr::new(LiteralValue::TimeStampTZ(*unit, *timezone, *value))
+            }
         }
     }
 }
@@ -470,6 +543,8 @@ mod tests {
         base::{
             database::{ColumnType, TableRef},
             map::indexset,
+            math::{decimal::Precision, i256::I256},
+            posql_time::{PoSQLTimeUnit, PoSQLTimeZone},
         },
         sql::proof_exprs::test_utility::*,
     };
@@ -521,23 +596,193 @@ mod tests {
 
     // EVMLiteralExpr
     #[test]
-    fn we_can_put_a_literal_expr_in_evm() {
+    fn we_can_put_an_integer_literal_expr_in_evm() {
+        // Test Uint8
         let evm_literal_expr =
-            EVMLiteralExpr::try_from_proof_expr(&LiteralExpr::new(LiteralValue::BigInt(5)))
-                .unwrap();
-        assert_eq!(evm_literal_expr, EVMLiteralExpr::BigInt(5));
+            EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(LiteralValue::Uint8(42)));
+        assert_eq!(evm_literal_expr, EVMLiteralExpr::Uint8(42));
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(*roundtripped.value(), LiteralValue::Uint8(42));
 
-        // Roundtrip
-        let roundtripped_literal_expr = evm_literal_expr.to_proof_expr();
-        assert_eq!(*roundtripped_literal_expr.value(), LiteralValue::BigInt(5));
+        // Test TinyInt
+        let evm_literal_expr =
+            EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(LiteralValue::TinyInt(-42)));
+        assert_eq!(evm_literal_expr, EVMLiteralExpr::TinyInt(-42));
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(*roundtripped.value(), LiteralValue::TinyInt(-42));
+
+        // Test SmallInt
+        let evm_literal_expr =
+            EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(LiteralValue::SmallInt(1234)));
+        assert_eq!(evm_literal_expr, EVMLiteralExpr::SmallInt(1234));
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(*roundtripped.value(), LiteralValue::SmallInt(1234));
+
+        // Test Int
+        let evm_literal_expr =
+            EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(LiteralValue::Int(-12345)));
+        assert_eq!(evm_literal_expr, EVMLiteralExpr::Int(-12345));
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(*roundtripped.value(), LiteralValue::Int(-12345));
+
+        // Test BigInt
+        let evm_literal_expr =
+            EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(LiteralValue::BigInt(5)));
+        assert_eq!(evm_literal_expr, EVMLiteralExpr::BigInt(5));
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(*roundtripped.value(), LiteralValue::BigInt(5));
+
+        // Test Int128
+        let evm_literal_expr = EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(
+            LiteralValue::Int128(1_234_567_890_123_456_789),
+        ));
+        assert_eq!(
+            evm_literal_expr,
+            EVMLiteralExpr::Int128(1_234_567_890_123_456_789)
+        );
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(
+            *roundtripped.value(),
+            LiteralValue::Int128(1_234_567_890_123_456_789)
+        );
     }
 
     #[test]
-    fn we_cannot_put_a_literal_expr_in_evm_if_not_supported() {
-        assert!(matches!(
-            EVMLiteralExpr::try_from_proof_expr(&LiteralExpr::new(LiteralValue::Boolean(true))),
-            Err(EVMProofPlanError::NotSupported)
+    fn we_can_put_a_boolean_literal_expr_in_evm() {
+        let evm_literal_expr =
+            EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(LiteralValue::Boolean(true)));
+        assert_eq!(evm_literal_expr, EVMLiteralExpr::Boolean(true));
+
+        // Roundtrip
+        let roundtripped_literal_expr = evm_literal_expr.to_proof_expr();
+        assert_eq!(
+            *roundtripped_literal_expr.value(),
+            LiteralValue::Boolean(true)
+        );
+    }
+
+    #[test]
+    fn we_can_put_a_string_literal_expr_in_evm() {
+        // Test VarChar
+        let test_string = "Hello, SQL World!".to_string();
+        let evm_literal_expr = EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(
+            LiteralValue::VarChar(test_string.clone()),
         ));
+        assert_eq!(
+            evm_literal_expr,
+            EVMLiteralExpr::VarChar(test_string.clone())
+        );
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(
+            *roundtripped.value(),
+            LiteralValue::VarChar(test_string.clone())
+        );
+    }
+
+    #[test]
+    fn we_can_put_a_binary_literal_expr_in_evm() {
+        // Test VarBinary
+        let test_bytes = vec![0x01, 0x02, 0x03, 0xFF];
+        let evm_literal_expr = EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(
+            LiteralValue::VarBinary(test_bytes.clone()),
+        ));
+        assert_eq!(
+            evm_literal_expr,
+            EVMLiteralExpr::VarBinary(test_bytes.clone())
+        );
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(
+            *roundtripped.value(),
+            LiteralValue::VarBinary(test_bytes.clone())
+        );
+    }
+
+    #[test]
+    fn we_can_put_a_decimal_literal_expr_in_evm() {
+        // Test Decimal75
+        let precision = Precision::new(10).unwrap();
+        let scale: i8 = 2;
+        let value = I256::from(12345i32); // 123.45 with scale 2
+
+        let evm_literal_expr = EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(
+            LiteralValue::Decimal75(precision, scale, value),
+        ));
+
+        if let EVMLiteralExpr::Decimal75(p, s, limbs) = evm_literal_expr {
+            assert_eq!(p, precision);
+            assert_eq!(s, scale);
+            // Use the limbs() method to access the private field
+            assert_eq!([limbs[3], limbs[2], limbs[1], limbs[0]], value.limbs());
+
+            let roundtripped = EVMLiteralExpr::Decimal75(p, s, limbs).to_proof_expr();
+            if let LiteralValue::Decimal75(rp, rs, rv) = *roundtripped.value() {
+                assert_eq!(rp, precision);
+                assert_eq!(rs, scale);
+                assert_eq!(rv.limbs(), value.limbs());
+            } else {
+                panic!("Expected Decimal75 value after roundtrip");
+            }
+        } else {
+            panic!("Expected Decimal75 variant");
+        }
+    }
+
+    #[test]
+    fn we_can_put_a_scalar_literal_expr_in_evm() {
+        // Test Scalar
+        let limbs: [u64; 4] = [1, 2, 3, 4];
+        let be_limbs: [u64; 4] = [4, 3, 2, 1];
+        let evm_literal_expr =
+            EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(LiteralValue::Scalar(limbs)));
+        assert_eq!(evm_literal_expr, EVMLiteralExpr::Scalar(be_limbs));
+        let roundtripped = evm_literal_expr.to_proof_expr();
+        assert_eq!(*roundtripped.value(), LiteralValue::Scalar(limbs));
+    }
+
+    #[test]
+    fn we_can_put_a_timestamp_literal_expr_in_evm() {
+        // Test TimeStampTZ
+        let unit = PoSQLTimeUnit::Millisecond;
+        let timezone = PoSQLTimeZone::new(3600); // UTC+1
+        let value: i64 = 1_619_712_000_000; // Some timestamp
+
+        let evm_literal_expr = EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(
+            LiteralValue::TimeStampTZ(unit, timezone, value),
+        ));
+
+        if let EVMLiteralExpr::TimeStampTZ(u, tz, ts) = evm_literal_expr {
+            assert_eq!(u, unit);
+            assert_eq!(tz, timezone);
+            assert_eq!(ts, value);
+
+            let roundtripped = EVMLiteralExpr::TimeStampTZ(u, tz, ts).to_proof_expr();
+            if let LiteralValue::TimeStampTZ(ru, rtz, rts) = *roundtripped.value() {
+                assert_eq!(ru, PoSQLTimeUnit::Millisecond);
+                assert_eq!(rtz, timezone);
+                assert_eq!(rts, value);
+            } else {
+                panic!("Expected TimeStampTZ value after roundtrip");
+            }
+        } else {
+            panic!("Expected TimeStampTZ variant");
+        }
+
+        // Test another TimeStampTZ with different unit and timezone
+        let unit2 = PoSQLTimeUnit::Nanosecond;
+        let timezone2 = PoSQLTimeZone::new(-7200); // UTC-2
+        let value2: i64 = 1_619_712_000_000_000_000; // Some timestamp in nanoseconds
+
+        let evm_literal_expr2 = EVMLiteralExpr::from_proof_expr(&LiteralExpr::new(
+            LiteralValue::TimeStampTZ(unit2, timezone2, value2),
+        ));
+
+        if let EVMLiteralExpr::TimeStampTZ(u, tz, ts) = evm_literal_expr2 {
+            assert_eq!(u, unit2);
+            assert_eq!(tz, timezone2);
+            assert_eq!(ts, value2);
+        } else {
+            panic!("Expected TimeStampTZ variant");
+        }
     }
 
     // EVMEqualsExpr
