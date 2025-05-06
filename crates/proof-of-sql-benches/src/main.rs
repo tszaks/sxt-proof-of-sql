@@ -93,7 +93,7 @@ enum Query {
     /// Filter query
     Filter,
     /// Multi column filter query
-    MultiColumnFilter,
+    ComplexFilter,
     /// Arithmetic query
     Arithmetic,
     /// Group by query
@@ -118,7 +118,7 @@ impl Query {
         match self {
             Query::All => "All",
             Query::Filter => "Filter",
-            Query::MultiColumnFilter => "Multi Column Filter",
+            Query::ComplexFilter => "Complex Filter",
             Query::Arithmetic => "Arithmetic",
             Query::GroupBy => "Group By",
             Query::Aggregate => "Aggregate",

@@ -64,15 +64,15 @@ impl BaseEntry for Filter {
     }
 }
 
-/// Multi-column filter query.
-pub struct MultiColumnFilter;
-impl BaseEntry for MultiColumnFilter {
+/// Complex filter query.
+pub struct ComplexFilter;
+impl BaseEntry for ComplexFilter {
     fn title(&self) -> &'static str {
-        "Multi Column Filter"
+        "Complex Filter"
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT * FROM bench_table WHERE ((a = $1) OR (b = $2)) AND (c = $3)"
+        "SELECT * FROM bench_table WHERE (((a = $1) AND (b = $2)) OR ((c = $3) AND (d = $4)))"
     }
 
     fn columns(&self) -> Vec<ColumnDefinition> {
@@ -88,6 +88,7 @@ impl BaseEntry for MultiColumnFilter {
                 Some(|size| (size / 10).max(10) as i64),
             ),
             ("c", ColumnType::VarChar, None),
+            ("d", ColumnType::VarChar, None),
         ]
     }
 
@@ -96,6 +97,7 @@ impl BaseEntry for MultiColumnFilter {
             LiteralValue::BigInt(0),
             LiteralValue::BigInt(1),
             LiteralValue::VarChar("a".to_string()),
+            LiteralValue::VarChar("b".to_string()),
         ]
     }
 }
@@ -407,7 +409,7 @@ impl BaseEntry for Coin {
 pub fn all_queries() -> Vec<QueryEntry> {
     vec![
         Filter.entry(),
-        MultiColumnFilter.entry(),
+        ComplexFilter.entry(),
         Arithmetic.entry(),
         GroupBy.entry(),
         Aggregate.entry(),
