@@ -16,11 +16,18 @@ use proof_of_sql::base::{
 /// Type alias for a single column definition in a query.
 type ColumnDefinition = (&'static str, ColumnType, OptionalRandBound);
 
+/// Struct for defining a table with a name and its column definitions.
+#[derive(Debug, Clone)]
+pub struct TableDefinition {
+    pub name: &'static str,
+    pub columns: Vec<ColumnDefinition>,
+}
+
 /// Type alias for a single query entry.
 pub type QueryEntry = (
     &'static str,
     &'static str,
-    Vec<ColumnDefinition>,
+    Vec<TableDefinition>,
     Vec<LiteralValue>,
 );
 
@@ -28,12 +35,12 @@ pub type QueryEntry = (
 pub trait BaseEntry {
     fn title(&self) -> &'static str;
     fn sql(&self) -> &'static str;
-    fn columns(&self) -> Vec<ColumnDefinition>;
+    fn tables(&self) -> Vec<TableDefinition>;
     fn params(&self) -> Vec<LiteralValue> {
         vec![]
     }
     fn entry(&self) -> QueryEntry {
-        (self.title(), self.sql(), self.columns(), self.params())
+        (self.title(), self.sql(), self.tables(), self.params())
     }
 }
 
@@ -48,15 +55,18 @@ impl BaseEntry for Filter {
         "SELECT b FROM bench_table WHERE a = $1"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            (
-                "a",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            ("b", ColumnType::VarChar, None),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                (
+                    "a",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                ("b", ColumnType::VarChar, None),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
@@ -75,21 +85,24 @@ impl BaseEntry for ComplexFilter {
         "SELECT * FROM bench_table WHERE (((a = $1) AND (b = $2)) OR ((c = $3) AND (d = $4)))"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            (
-                "a",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "b",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            ("c", ColumnType::VarChar, None),
-            ("d", ColumnType::VarChar, None),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                (
+                    "a",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "b",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                ("c", ColumnType::VarChar, None),
+                ("d", ColumnType::VarChar, None),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
@@ -113,20 +126,23 @@ impl BaseEntry for Arithmetic {
         "SELECT a + b AS r0, a * b - $1 AS r1, c FROM bench_table WHERE a <= b AND a >= $2"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            (
-                "a",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "b",
-                ColumnType::TinyInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            ("c", ColumnType::VarChar, None),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                (
+                    "a",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "b",
+                    ColumnType::TinyInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                ("c", ColumnType::VarChar, None),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
@@ -145,19 +161,22 @@ impl BaseEntry for GroupBy {
         "SELECT SUM(a), COUNT(*) FROM bench_table WHERE a = $1 GROUP BY b"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            (
-                "a",
-                ColumnType::Int,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "b",
-                ColumnType::Int,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                (
+                    "a",
+                    ColumnType::Int,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "b",
+                    ColumnType::Int,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
@@ -176,20 +195,23 @@ impl BaseEntry for Aggregate {
         "SELECT SUM(a) AS foo, COUNT(1) AS values FROM bench_table WHERE a = b OR c = $1"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            (
-                "a",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "b",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            ("c", ColumnType::VarChar, None),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                (
+                    "a",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "b",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                ("c", ColumnType::VarChar, None),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
@@ -208,16 +230,19 @@ impl BaseEntry for BooleanFilter {
         "SELECT * FROM bench_table WHERE c = $1 and b = $2 or a = $3"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            (
-                "a",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            ("b", ColumnType::VarChar, None),
-            ("c", ColumnType::Boolean, None),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                (
+                    "a",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                ("b", ColumnType::VarChar, None),
+                ("c", ColumnType::Boolean, None),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
@@ -240,36 +265,39 @@ impl BaseEntry for LargeColumnSet {
         "SELECT * FROM bench_table WHERE b = d"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            ("a", ColumnType::Boolean, None),
-            (
-                "b",
-                ColumnType::TinyInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "c",
-                ColumnType::SmallInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "d",
-                ColumnType::Int,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "e",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            ("g", ColumnType::VarChar, None),
-            (
-                "h",
-                ColumnType::Decimal75(Precision::new(75).unwrap(), 0),
-                None,
-            ),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                ("a", ColumnType::Boolean, None),
+                (
+                    "b",
+                    ColumnType::TinyInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "c",
+                    ColumnType::SmallInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "d",
+                    ColumnType::Int,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "e",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                ("g", ColumnType::VarChar, None),
+                (
+                    "h",
+                    ColumnType::Decimal75(Precision::new(75).unwrap(), 0),
+                    None,
+                ),
+            ],
+        }]
     }
 }
 
@@ -284,25 +312,28 @@ impl BaseEntry for ComplexCondition {
         "SELECT * FROM bench_table WHERE (a > c * c AND b < c + $1) OR (d = $2)"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            (
-                "a",
-                ColumnType::Int,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "b",
-                ColumnType::Int,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "c",
-                ColumnType::Int,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            ("d", ColumnType::VarChar, None),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                (
+                    "a",
+                    ColumnType::Int,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "b",
+                    ColumnType::Int,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "c",
+                    ColumnType::Int,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                ("d", ColumnType::VarChar, None),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
@@ -324,25 +355,28 @@ impl BaseEntry for SumCount {
         "SELECT SUM(a*b*c) AS foo, SUM(a*b) AS bar, COUNT(1) FROM bench_table WHERE a = $1 OR c-b = $2 AND d = $3"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            (
-                "a",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "b",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            (
-                "c",
-                ColumnType::BigInt,
-                Some(|size| (size / 10).max(10) as i64),
-            ),
-            ("d", ColumnType::VarChar, None),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                (
+                    "a",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "b",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                (
+                    "c",
+                    ColumnType::BigInt,
+                    Some(|size| (size / 10).max(10) as i64),
+                ),
+                ("d", ColumnType::VarChar, None),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
@@ -382,21 +416,24 @@ impl BaseEntry for Coin {
         FROM bench_table;"
     }
 
-    fn columns(&self) -> Vec<ColumnDefinition> {
-        vec![
-            ("from_address", ColumnType::VarChar, None),
-            ("to_address", ColumnType::VarChar, None),
-            (
-                "value",
-                ColumnType::Decimal75(Precision::new(75).unwrap(), 0),
-                None,
-            ),
-            (
-                "timestamp",
-                ColumnType::TimestampTZ(PoSQLTimeUnit::Second, PoSQLTimeZone::utc()),
-                None,
-            ),
-        ]
+    fn tables(&self) -> Vec<TableDefinition> {
+        vec![TableDefinition {
+            name: "bench_table",
+            columns: vec![
+                ("from_address", ColumnType::VarChar, None),
+                ("to_address", ColumnType::VarChar, None),
+                (
+                    "value",
+                    ColumnType::Decimal75(Precision::new(75).unwrap(), 0),
+                    None,
+                ),
+                (
+                    "timestamp",
+                    ColumnType::TimestampTZ(PoSQLTimeUnit::Second, PoSQLTimeZone::utc()),
+                    None,
+                ),
+            ],
+        }]
     }
 
     fn params(&self) -> Vec<LiteralValue> {

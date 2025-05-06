@@ -215,13 +215,20 @@ fn bench_by_schema<CP: CommitmentEvaluationProof>(
     let mut accessor: BenchmarkAccessor<'_, CP::Commitment> = BenchmarkAccessor::default();
     let mut rng = get_rng(cli);
 
-    for (query, sql, columns, params) in queries {
+    for (query, sql, tables, params) in queries {
         // Get accessor
-        accessor.insert_table(
-            TableRef::from_names(None, "bench_table"),
-            &generate_random_columns(&alloc, &mut rng, columns, cli.table_size),
-            &prover_setup,
-        );
+        for table in tables {
+            accessor.insert_table(
+                TableRef::from_names(None, table.name),
+                &generate_random_columns(
+                    &alloc,
+                    &mut rng,
+                    table.columns.as_slice(),
+                    cli.table_size,
+                ),
+                &prover_setup,
+            );
+        }
 
         let config = ConfigOptions::default();
         let statements = sqlparser::parser::Parser::parse_sql(&GenericDialect {}, sql).unwrap();
