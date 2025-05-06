@@ -25,6 +25,8 @@ mod proof_plan_with_postprocessing;
 pub use proof_plan_with_postprocessing::{
     logical_plan_to_proof_plan_with_postprocessing, ProofPlanWithPostprocessing,
 };
+mod uppercase_column_visitor;
+pub use uppercase_column_visitor::{statement_with_uppercase_identifiers, uppercase_identifier};
 mod util;
 pub use util::column_fields_to_schema;
 pub(crate) use util::{
