@@ -104,16 +104,9 @@ pub(crate) fn final_round_evaluate_range_check<'a, S: Scalar + 'a>(
     let alpha = builder.consume_post_result_challenge();
 
     // avoids usize to u8 cast
-    let mut word_value_table = [0u8; 256];
-    let mut inv_word_values_plus_alpha_table = [S::ZERO; 256];
-    for i in 0u8..=255 {
-        word_value_table[i as usize] = i;
-        inv_word_values_plus_alpha_table[i as usize] = S::from(&i);
-    }
-    let inv_word_vals_plus_alpha_table: &mut [S] = alloc
-        .alloc_slice_fill_with(inv_word_values_plus_alpha_table.len(), |i| {
-            inv_word_values_plus_alpha_table[i]
-        });
+    let word_val_table = alloc.alloc_slice_fill_iter(0u8..=255);
+    let inv_word_vals_plus_alpha_table: &mut [S] =
+        alloc.alloc_slice_fill_iter((0..256).map(S::from));
     // Add alpha, batch invert, etc.
     slice_ops::add_const::<S, S>(inv_word_vals_plus_alpha_table, alpha);
     slice_ops::batch_inversion(inv_word_vals_plus_alpha_table);
@@ -134,7 +127,7 @@ pub(crate) fn final_round_evaluate_range_check<'a, S: Scalar + 'a>(
         alloc,
         alpha,
         builder,
-        alloc.alloc_slice_copy(&word_value_table), // give this an explicit lifetime for MLE commitment
+        word_val_table, // give this an explicit lifetime for MLE commitment
         inv_word_vals_plus_alpha_table,
     );
 
