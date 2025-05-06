@@ -142,7 +142,7 @@ impl BaseEntry for GroupBy {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT a, COUNT(*) FROM bench_table WHERE (c = $1) and (a <= b) and (a > $2) GROUP BY a"
+        "SELECT SUM(a), COUNT(*) FROM bench_table WHERE a = $1 GROUP BY b"
     }
 
     fn columns(&self) -> Vec<ColumnDefinition> {
@@ -157,12 +157,11 @@ impl BaseEntry for GroupBy {
                 ColumnType::Int,
                 Some(|size| (size / 10).max(10) as i64),
             ),
-            ("c", ColumnType::Boolean, None),
         ]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
-        vec![LiteralValue::Boolean(true), LiteralValue::Int(0)]
+        vec![LiteralValue::Int(0)]
     }
 }
 
