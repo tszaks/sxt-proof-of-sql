@@ -8,15 +8,6 @@ import "./SwitchUtil.pre.sol";
 /// @title DataType
 /// @dev Library providing parsing utilities for different data types
 library DataType {
-    enum DataTypeKind {
-        Boolean,
-        Uint8,
-        TinyInt,
-        SmallInt,
-        Int,
-        BigInt
-    }
-
     /// @notice Reads a data entry based on the data type variant
     /// @custom:as-yul-wrapper
     /// #### Wrapped Yul Function
