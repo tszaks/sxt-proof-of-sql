@@ -37,11 +37,11 @@ pub trait BaseEntry {
     }
 }
 
-/// Single column filter query.
-pub struct SingleColumnFilter;
-impl BaseEntry for SingleColumnFilter {
+/// Filter query.
+pub struct Filter;
+impl BaseEntry for Filter {
     fn title(&self) -> &'static str {
-        "Single Column Filter"
+        "Filter"
     }
 
     fn sql(&self) -> &'static str {
@@ -64,15 +64,15 @@ impl BaseEntry for SingleColumnFilter {
     }
 }
 
-/// Multi-column filter query.
-pub struct MultiColumnFilter;
-impl BaseEntry for MultiColumnFilter {
+/// Complex filter query.
+pub struct ComplexFilter;
+impl BaseEntry for ComplexFilter {
     fn title(&self) -> &'static str {
-        "Multi Column Filter"
+        "Complex Filter"
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT * FROM bench_table WHERE ((a = $1) OR (b = $2)) AND (c = $3)"
+        "SELECT * FROM bench_table WHERE (((a = $1) AND (b = $2)) OR ((c = $3) AND (d = $4)))"
     }
 
     fn columns(&self) -> Vec<ColumnDefinition> {
@@ -88,6 +88,7 @@ impl BaseEntry for MultiColumnFilter {
                 Some(|size| (size / 10).max(10) as i64),
             ),
             ("c", ColumnType::VarChar, None),
+            ("d", ColumnType::VarChar, None),
         ]
     }
 
@@ -96,6 +97,7 @@ impl BaseEntry for MultiColumnFilter {
             LiteralValue::BigInt(0),
             LiteralValue::BigInt(1),
             LiteralValue::VarChar("a".to_string()),
+            LiteralValue::VarChar("b".to_string()),
         ]
     }
 }
@@ -140,7 +142,7 @@ impl BaseEntry for GroupBy {
     }
 
     fn sql(&self) -> &'static str {
-        "SELECT a, COUNT(*) FROM bench_table WHERE (c = $1) and (a <= b) and (a > $2) GROUP BY a"
+        "SELECT SUM(a), COUNT(*) FROM bench_table WHERE a = $1 GROUP BY b"
     }
 
     fn columns(&self) -> Vec<ColumnDefinition> {
@@ -155,12 +157,11 @@ impl BaseEntry for GroupBy {
                 ColumnType::Int,
                 Some(|size| (size / 10).max(10) as i64),
             ),
-            ("c", ColumnType::Boolean, None),
         ]
     }
 
     fn params(&self) -> Vec<LiteralValue> {
-        vec![LiteralValue::Boolean(true), LiteralValue::Int(0)]
+        vec![LiteralValue::Int(0)]
     }
 }
 
@@ -406,8 +407,8 @@ impl BaseEntry for Coin {
 /// Retrieves all available queries.
 pub fn all_queries() -> Vec<QueryEntry> {
     vec![
-        SingleColumnFilter.entry(),
-        MultiColumnFilter.entry(),
+        Filter.entry(),
+        ComplexFilter.entry(),
         Arithmetic.entry(),
         GroupBy.entry(),
         Aggregate.entry(),

@@ -90,10 +90,10 @@ enum CommitmentScheme {
 enum Query {
     /// All queries
     All,
-    /// Single column filter query
-    SingleColumnFilter,
+    /// Filter query
+    Filter,
     /// Multi column filter query
-    MultiColumnFilter,
+    ComplexFilter,
     /// Arithmetic query
     Arithmetic,
     /// Group by query
@@ -117,8 +117,8 @@ impl Query {
     pub fn to_string(&self) -> &'static str {
         match self {
             Query::All => "All",
-            Query::SingleColumnFilter => "Single Column Filter",
-            Query::MultiColumnFilter => "Multi Column Filter",
+            Query::Filter => "Filter",
+            Query::ComplexFilter => "Complex Filter",
             Query::Arithmetic => "Arithmetic",
             Query::GroupBy => "Group By",
             Query::Aggregate => "Aggregate",
