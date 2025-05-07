@@ -115,8 +115,6 @@ impl ProverEvaluate for RangeCheckTestPlan {
 
         handle_column_with_match!(col, first_round_evaluate_range_check, builder, alloc);
 
-        builder.produce_chi_evaluation_length(256);
-
         // Return a clone of the same table
         Ok(table.clone())
     }

@@ -41,6 +41,7 @@ pub(crate) fn first_round_evaluate_range_check<'a, S>(
     S: Scalar + 'a,
 {
     builder.update_range_length(256);
+    builder.produce_chi_evaluation_length(256);
 
     // Create 31 columns, each will collect the corresponding byte from all scalars.
     // 31 because a scalar will only ever have 248 bits set.
