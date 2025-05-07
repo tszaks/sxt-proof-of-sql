@@ -1,4 +1,4 @@
-use crate::base::scalar::{Scalar, ScalarConversionError};
+use crate::base::scalar::{Scalar, ScalarConversionError, ScalarExt};
 use alloc::{
     format,
     string::{String, ToString},
@@ -17,7 +17,7 @@ use core::{
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 use num_bigint::BigInt;
-use num_traits::{Signed, Zero};
+use num_traits::Signed;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[derive(CanonicalSerialize, CanonicalDeserialize, TransparentWrapper)]
 /// A wrapper struct around a `Fp256<MontBackend<T, 4>>` that can easily implement the `Scalar` trait.
@@ -134,15 +134,7 @@ macro_rules! impl_from_for_mont_scalar_for_type_supported_by_from {
 /// Implement `From<&[u8]>` for `MontScalar`
 impl<T: MontConfig<4>> From<&[u8]> for MontScalar<T> {
     fn from(x: &[u8]) -> Self {
-        if x.is_empty() {
-            return Self::zero();
-        }
-
-        let hash = blake3::hash(x);
-        let mut bytes: [u8; 32] = hash.into();
-        bytes[31] &= 0b0000_1111_u8;
-
-        Self::from_le_bytes_mod_order(&bytes)
+        ScalarExt::from_byte_slice_via_hash(x)
     }
 }
 
