@@ -1,5 +1,8 @@
 use crate::{
-    base::database::{ColumnField, ColumnRef, ColumnType, LiteralValue, TableRef},
+    base::{
+        database::{ColumnField, ColumnRef, ColumnType, LiteralValue, TableRef},
+        try_standard_binary_deserialization, try_standard_binary_serialization,
+    },
     sql::{
         evm_proof_plan::EVMProofPlan,
         proof_exprs::{
@@ -26,13 +29,7 @@ fn we_cannot_generate_serialized_proof_plan_for_unsupported_plan() {
         schema,
     );
 
-    bincode::serde::encode_to_vec(
-        EVMProofPlan::new(plan),
-        bincode::config::legacy()
-            .with_fixed_int_encoding()
-            .with_big_endian(),
-    )
-    .unwrap_err();
+    try_standard_binary_serialization(EVMProofPlan::new(plan)).unwrap_err();
 }
 
 #[test]
@@ -62,13 +59,7 @@ fn we_can_generate_serialized_proof_plan_for_simple_filter() {
         ),
     ));
 
-    let bytes = bincode::serde::encode_to_vec(
-        EVMProofPlan::new(plan),
-        bincode::config::legacy()
-            .with_fixed_int_encoding()
-            .with_big_endian(),
-    )
-    .unwrap();
+    let bytes = try_standard_binary_serialization(EVMProofPlan::new(plan)).unwrap();
 
     let expected_bytes: Vec<_> = iter::empty()
         .chain(&1_usize.to_be_bytes())
@@ -161,13 +152,7 @@ fn we_can_deserialize_proof_plan_for_simple_filter() {
         .copied()
         .collect();
 
-    let deserialized = bincode::serde::decode_from_slice::<EVMProofPlan, _>(
-        &serialized,
-        bincode::config::legacy()
-            .with_fixed_int_encoding()
-            .with_big_endian(),
-    )
-    .unwrap();
+    let deserialized = try_standard_binary_deserialization::<EVMProofPlan>(&serialized).unwrap();
     let plan = deserialized.0.inner();
     assert_eq!(plan, &expected_plan);
 }

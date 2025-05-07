@@ -14,7 +14,11 @@ pub(crate) mod polynomial;
 /// Module for Proof of SQL datetime types.
 pub mod posql_time;
 pub(crate) mod proof;
+mod standard_binary_serde;
 pub use proof::{PlaceholderError, PlaceholderResult};
+pub use standard_binary_serde::{
+    try_standard_binary_deserialization, try_standard_binary_serialization,
+};
 pub(crate) mod ref_into;
 /// This module contains the `Scalar` trait as well as the main, generic, implementations of it.
 pub mod scalar;
