@@ -40,6 +40,12 @@ contract ConstantsTest is Test {
         assert(WORDX12_SIZE == 12 * WORD_SIZE);
     }
 
+    function testBooleanSizesAreCorrect() public pure {
+        assert(BOOLEAN_SIZE * 8 == 8);
+        assert(BOOLEAN_PADDING_BITS == 256 - 8);
+        assert(BOOLEAN_SIZE_MINUS_ONE == BOOLEAN_SIZE - 1);
+    }
+
     function testInt8SizesAreCorrect() public pure {
         assert(INT8_SIZE * 8 == 8);
         assert(INT8_PADDING_BITS == 256 - 8);

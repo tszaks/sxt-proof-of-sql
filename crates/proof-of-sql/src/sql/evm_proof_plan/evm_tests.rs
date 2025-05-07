@@ -98,7 +98,7 @@ fn we_can_verify_a_query_with_all_supported_types_using_the_evm() {
             smallint("i16", [0, i16::MIN, i16::MAX, -1, 1]),
             int("i32", [0, i32::MIN, i32::MAX, -1, 1]),
             bigint("i64", [0, i64::MIN, i64::MAX, -1, 1]),
-            decimal75("d", 35, 10, [0, -2, -1, 1, 2]),
+            decimal75("d", 5, 0, [0, -2, -1, 1, 2]),
             timestamptz(
                 "t",
                 PoSQLTimeUnit::Second,
@@ -115,30 +115,36 @@ fn we_can_verify_a_query_with_all_supported_types_using_the_evm() {
         0,
         &ps[..],
     );
-    let query = QueryExpr::try_new(
-        "SELECT b, i8, i16, i32, i64, d, t from table where b"
-            .parse()
-            .unwrap(),
-        "namespace".into(),
-        &accessor,
-    )
-    .unwrap();
-    let plan = query.proof_expr();
 
-    let verifiable_result = VerifiableQueryResult::<HyperKZGCommitmentEvaluationProof>::new(
-        &EVMProofPlan::new(plan.clone()),
-        &accessor,
-        &&ps[..],
-        &[],
-    )
-    .unwrap();
+    let sql_list = [
+        "SELECT b, i8, i16, i32, i64, d, t from table where b",
+        "SELECT b, i8, i16, i32, i64, d, t from table where i8 = 0",
+        "SELECT b, i8, i16, i32, i64, d, t from table where i16 = 0",
+        "SELECT b, i8, i16, i32, i64, d, t from table where i32 = 1",
+        "SELECT b, i8, i16, i32, i64, d, t from table where i64 = 0",
+        "SELECT b, i8, i16, i32, i64, d, t from table where d = 1",
+    ];
 
-    assert!(evm_verifier_all(plan, &verifiable_result, &accessor));
+    for sql in sql_list {
+        let query =
+            QueryExpr::try_new(sql.parse().unwrap(), "namespace".into(), &accessor).unwrap();
+        let plan = query.proof_expr();
 
-    verifiable_result
-        .clone()
-        .verify(&EVMProofPlan::new(plan.clone()), &accessor, &&vk, &[])
+        let verifiable_result = VerifiableQueryResult::<HyperKZGCommitmentEvaluationProof>::new(
+            &EVMProofPlan::new(plan.clone()),
+            &accessor,
+            &&ps[..],
+            &[],
+        )
         .unwrap();
+
+        assert!(evm_verifier_all(plan, &verifiable_result, &accessor));
+
+        verifiable_result
+            .clone()
+            .verify(&EVMProofPlan::new(plan.clone()), &accessor, &&vk, &[])
+            .unwrap();
+    }
 }
 
 #[ignore = "This test requires the forge binary to be present"]

@@ -51,43 +51,38 @@ library DataType {
                     entry :=
                         add(MODULUS, signextend(INT8_SIZE_MINUS_ONE, shr(INT8_PADDING_BITS, calldataload(result_ptr))))
                     result_ptr_out := add(result_ptr, INT8_SIZE)
-                    entry := mod(entry, MODULUS)
                 }
                 case 3 {
                     case_const(3, DATA_TYPE_SMALLINT_VARIANT)
                     entry :=
                         add(MODULUS, signextend(INT16_SIZE_MINUS_ONE, shr(INT16_PADDING_BITS, calldataload(result_ptr))))
                     result_ptr_out := add(result_ptr, INT16_SIZE)
-                    entry := mod(entry, MODULUS)
                 }
                 case 4 {
                     case_const(4, DATA_TYPE_INT_VARIANT)
                     entry :=
                         add(MODULUS, signextend(INT32_SIZE_MINUS_ONE, shr(INT32_PADDING_BITS, calldataload(result_ptr))))
                     result_ptr_out := add(result_ptr, INT32_SIZE)
-                    entry := mod(entry, MODULUS)
                 }
                 case 5 {
                     case_const(5, DATA_TYPE_BIGINT_VARIANT)
                     entry :=
                         add(MODULUS, signextend(INT64_SIZE_MINUS_ONE, shr(INT64_PADDING_BITS, calldataload(result_ptr))))
                     result_ptr_out := add(result_ptr, INT64_SIZE)
-                    entry := mod(entry, MODULUS)
                 }
                 case 8 {
                     case_const(8, DATA_TYPE_DECIMAL75_VARIANT)
                     entry := calldataload(result_ptr)
                     result_ptr_out := add(result_ptr, WORD_SIZE)
-                    entry := mod(entry, MODULUS)
                 }
                 case 9 {
                     case_const(9, DATA_TYPE_TIMESTAMP_VARIANT)
                     entry :=
                         add(MODULUS, signextend(INT64_SIZE_MINUS_ONE, shr(INT64_PADDING_BITS, calldataload(result_ptr))))
                     result_ptr_out := add(result_ptr, INT64_SIZE)
-                    entry := mod(entry, MODULUS)
                 }
                 default { err(ERR_UNSUPPORTED_DATA_TYPE_VARIANT) }
+                entry := mod(entry, MODULUS)
             }
             let __exprOutOffset
             __exprOutOffset, __entry := read_entry(__expr.offset, __dataTypeVariant)
