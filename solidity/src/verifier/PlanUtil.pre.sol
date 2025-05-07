@@ -3,6 +3,7 @@
 pragma solidity ^0.8.28;
 
 import "../base/Constants.sol";
+import "../base/Errors.sol";
 
 /// @title Plan Utility Library
 /// @notice A library for handling utility functions related to plans.
@@ -19,7 +20,7 @@ library PlanUtil {
     /// @dev     * index of the table the column belongs to (uint64)
     /// @dev     * length of column name (uint64)
     /// @dev     * column name (variable length)
-    /// @dev     * column type (uint32)
+    /// @dev     * column type (variable length)
     /// @dev * number of output columns (uint64)
     /// @dev * output column names
     /// @dev     * length of output column name (uint64)
@@ -28,6 +29,18 @@ library PlanUtil {
     /// @return __planOut The updated pointer after skipping names which points to the actual plan itself. i.e., the AST without any names.
     function __skipPlanNames(bytes calldata __plan) external pure returns (bytes calldata __planOut) {
         assembly {
+            // IMPORT-YUL ../base/Errors.sol
+            function err(code) {
+                revert(0, 0)
+            }
+            // IMPORT-YUL ../base/SwitchUtil.pre.sol
+            function case_const(lhs, rhs) {
+                revert(0, 0)
+            }
+            // IMPORT-YUL ../base/DataType.pre.sol
+            function read_data_type(ptr) -> ptr_out, data_type {
+                revert(0, 0)
+            }
             function skip_plan_names(plan_ptr) -> plan_ptr_out {
                 // skip over the table names
                 let num_tables := shr(UINT64_PADDING_BITS, calldataload(plan_ptr))
@@ -43,7 +56,8 @@ library PlanUtil {
                     plan_ptr := add(plan_ptr, UINT64_SIZE)
                     let name_len := shr(UINT64_PADDING_BITS, calldataload(plan_ptr))
                     plan_ptr := add(plan_ptr, add(UINT64_SIZE, name_len))
-                    plan_ptr := add(plan_ptr, UINT32_SIZE)
+                    let data_type
+                    plan_ptr, data_type := read_data_type(plan_ptr)
                 }
                 // skip over the output column names
                 let num_outputs := shr(UINT64_PADDING_BITS, calldataload(plan_ptr))

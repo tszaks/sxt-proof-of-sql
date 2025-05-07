@@ -28,6 +28,13 @@ contract ErrorsTest is Test {
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
+    function testErrorInvalidBoolean() public {
+        assert(Errors.InvalidBoolean.selector == bytes4(ERR_INVALID_BOOLEAN));
+        vm.expectRevert(Errors.InvalidBoolean.selector);
+        Errors.__err(ERR_INVALID_BOOLEAN);
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
     function testErrorCommitmentArrayOddLength() public {
         assert(Errors.CommitmentArrayOddLength.selector == bytes4(ERR_COMMITMENT_ARRAY_ODD_LENGTH));
         vm.expectRevert(Errors.CommitmentArrayOddLength.selector);

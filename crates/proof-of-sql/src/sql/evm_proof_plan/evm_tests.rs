@@ -1,7 +1,7 @@
 use crate::{
-    base::database::{
-        owned_table_utility::{bigint, owned_table},
-        CommitmentAccessor, OwnedTableTestAccessor,
+    base::{
+        database::{owned_table_utility::*, CommitmentAccessor, OwnedTableTestAccessor},
+        posql_time::{PoSQLTimeUnit, PoSQLTimeZone},
     },
     proof_primitive::hyperkzg::{self, HyperKZGCommitment, HyperKZGCommitmentEvaluationProof},
     sql::{
@@ -83,6 +83,62 @@ fn evm_verifier_all(
             accessor,
             &["--optimize", "--via-ir"],
         )
+}
+
+#[ignore = "This test requires the forge binary to be present"]
+#[test]
+fn we_can_verify_a_query_with_all_supported_types_using_the_evm() {
+    let (ps, vk) = hyperkzg::load_small_setup_for_testing();
+
+    let accessor = OwnedTableTestAccessor::<HyperKZGCommitmentEvaluationProof>::new_from_table(
+        "namespace.table".parse().unwrap(),
+        owned_table([
+            boolean("b", [true, false, true, false, true]),
+            tinyint("i8", [0, i8::MIN, i8::MAX, -1, 1]),
+            smallint("i16", [0, i16::MIN, i16::MAX, -1, 1]),
+            int("i32", [0, i32::MIN, i32::MAX, -1, 1]),
+            bigint("i64", [0, i64::MIN, i64::MAX, -1, 1]),
+            decimal75("d", 35, 10, [0, -2, -1, 1, 2]),
+            timestamptz(
+                "t",
+                PoSQLTimeUnit::Second,
+                PoSQLTimeZone::utc(),
+                [
+                    1_746_627_936,
+                    1_746_627_937,
+                    1_746_627_938,
+                    1_746_627_939,
+                    1_746_627_940,
+                ],
+            ),
+        ]),
+        0,
+        &ps[..],
+    );
+    let query = QueryExpr::try_new(
+        "SELECT b, i8, i16, i32, i64, d, t from table where b"
+            .parse()
+            .unwrap(),
+        "namespace".into(),
+        &accessor,
+    )
+    .unwrap();
+    let plan = query.proof_expr();
+
+    let verifiable_result = VerifiableQueryResult::<HyperKZGCommitmentEvaluationProof>::new(
+        &EVMProofPlan::new(plan.clone()),
+        &accessor,
+        &&ps[..],
+        &[],
+    )
+    .unwrap();
+
+    assert!(evm_verifier_all(plan, &verifiable_result, &accessor));
+
+    verifiable_result
+        .clone()
+        .verify(&EVMProofPlan::new(plan.clone()), &accessor, &&vk, &[])
+        .unwrap();
 }
 
 #[ignore = "This test requires the forge binary to be present"]
