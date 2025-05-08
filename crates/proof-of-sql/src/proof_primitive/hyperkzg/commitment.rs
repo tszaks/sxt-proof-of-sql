@@ -218,6 +218,7 @@ mod tests {
     use super::*;
     #[cfg(feature = "hyperkzg_proof")]
     use crate::base::database::OwnedColumn;
+    use crate::base::{try_standard_binary_deserialization, try_standard_binary_serialization};
     #[cfg(feature = "hyperkzg_proof")]
     use crate::proof_primitive::hyperkzg::nova_commitment_key_to_hyperkzg_public_setup;
     #[cfg(feature = "hyperkzg_proof")]
@@ -262,28 +263,22 @@ mod tests {
 
     #[test]
     fn we_can_serialize_and_deserialize_hyperkzg_commitment_generator() {
-        let bincode_config = bincode::config::legacy()
-            .with_fixed_int_encoding()
-            .with_big_endian();
         let commitment: HyperKZGCommitment = (&G1Affine::generator()).into();
-        let bytes = bincode::serde::encode_to_vec(commitment, bincode_config).unwrap();
+        let bytes = try_standard_binary_serialization(commitment).unwrap();
         assert_eq!(bytes, [&[0u8; 31][..], &[1], &[0; 31], &[2]].concat());
 
         let (deserialized_commitment, _): (HyperKZGCommitment, _) =
-            bincode::serde::decode_from_slice(&bytes[..], bincode_config).unwrap();
+            try_standard_binary_deserialization(&bytes[..]).unwrap();
         assert_eq!(deserialized_commitment.commitment, G1Affine::generator());
     }
     #[test]
     fn we_can_serialize_and_deserialize_hyperkzg_commitment_identity() {
-        let bincode_config = bincode::config::legacy()
-            .with_fixed_int_encoding()
-            .with_big_endian();
         let commitment: HyperKZGCommitment = (&G1Affine::identity()).into();
-        let bytes = bincode::serde::encode_to_vec(commitment, bincode_config).unwrap();
+        let bytes = try_standard_binary_serialization(commitment).unwrap();
         assert_eq!(bytes, [&[0u8; 31][..], &[0], &[0; 31], &[0]].concat());
 
         let (deserialized_commitment, _): (HyperKZGCommitment, _) =
-            bincode::serde::decode_from_slice(&bytes[..], bincode_config).unwrap();
+            try_standard_binary_deserialization(&bytes[..]).unwrap();
         assert_eq!(deserialized_commitment.commitment, G1Affine::identity());
     }
     #[test]
@@ -292,14 +287,11 @@ mod tests {
 
         let mut rng = ark_std::test_rng();
 
-        let bincode_config = bincode::config::legacy()
-            .with_fixed_int_encoding()
-            .with_big_endian();
         for _ in 0..100 {
             let commitment: HyperKZGCommitment = (&G1Affine::rand(&mut rng)).into();
-            let bytes = bincode::serde::encode_to_vec(commitment, bincode_config).unwrap();
+            let bytes = try_standard_binary_serialization(commitment).unwrap();
             let (deserialized_commitment, _): (HyperKZGCommitment, _) =
-                bincode::serde::decode_from_slice(&bytes[..], bincode_config).unwrap();
+                try_standard_binary_deserialization(&bytes[..]).unwrap();
             assert_eq!(deserialized_commitment.commitment, commitment.commitment);
         }
     }
