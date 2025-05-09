@@ -17,6 +17,7 @@ pub struct MockVerificationBuilder<S: Scalar> {
     consumed_final_round_pcs_proof_mles: usize,
     consumed_chi_evaluations: usize,
     consumed_rho_evaluations: usize,
+    consumed_post_result_challenges: usize,
     subpolynomial_max_multiplicands: usize,
 
     evaluation_row_index: usize,
@@ -24,6 +25,7 @@ pub struct MockVerificationBuilder<S: Scalar> {
     final_round_mles: Vec<Vec<S>>,
     chi_evaluation_length_queue: Vec<usize>,
     rho_evaluation_length_queue: Vec<usize>,
+    post_result_challenges: Vec<S>,
     pub(crate) identity_subpolynomial_evaluations: Vec<Vec<S>>,
     pub(crate) zerosum_subpolynomial_evaluations: Vec<Vec<S>>,
 }
@@ -133,7 +135,12 @@ impl<S: Scalar> VerificationBuilder<S> for MockVerificationBuilder<S> {
     }
 
     fn try_consume_post_result_challenge(&mut self) -> Result<S, ProofSizeMismatch> {
-        unimplemented!("No tests currently use this function")
+        let challenge = self
+            .post_result_challenges
+            .get(self.consumed_post_result_challenges)
+            .ok_or(ProofSizeMismatch::PostResultCountMismatch)?;
+        self.consumed_post_result_challenges += 1;
+        Ok(*challenge)
     }
 
     fn try_consume_final_round_mle_evaluations(
@@ -152,6 +159,7 @@ impl<S: Scalar> MockVerificationBuilder<S> {
         subpolynomial_max_multiplicands: usize,
         first_round_mles: Vec<Vec<S>>,
         final_round_mles: Vec<Vec<S>>,
+        post_result_challenges: Vec<S>,
         chi_evaluation_length_queue: Vec<usize>,
         rho_evaluation_length_queue: Vec<usize>,
     ) -> Self {
@@ -162,12 +170,14 @@ impl<S: Scalar> MockVerificationBuilder<S> {
             consumed_final_round_pcs_proof_mles: 0,
             consumed_chi_evaluations: 0,
             consumed_rho_evaluations: 0,
+            consumed_post_result_challenges: 0,
             subpolynomial_max_multiplicands,
             evaluation_row_index: 0,
             first_round_mles,
             final_round_mles,
             chi_evaluation_length_queue,
             rho_evaluation_length_queue,
+            post_result_challenges,
             identity_subpolynomial_evaluations: Vec::new(),
             zerosum_subpolynomial_evaluations: Vec::new(),
         }
@@ -179,6 +189,7 @@ impl<S: Scalar> MockVerificationBuilder<S> {
         self.consumed_chi_evaluations = 0;
         self.consumed_first_round_pcs_proof_mles = 0;
         self.consumed_rho_evaluations = 0;
+        self.consumed_post_result_challenges = 0;
         self.evaluation_row_index += 1;
     }
 
@@ -229,6 +240,7 @@ pub fn run_verify_for_each_row(
     table_length: usize,
     first_round_builder: &FirstRoundBuilder<'_, TestScalar>,
     final_round_builder: &FinalRoundBuilder<'_, TestScalar>,
+    post_result_challenges: Vec<TestScalar>,
     subpolynomial_max_multiplicands: usize,
     row_verification: impl Fn(&mut MockVerificationBuilder<TestScalar>, TestScalar, &[TestScalar]),
 ) -> MockVerificationBuilder<TestScalar> {
@@ -258,6 +270,7 @@ pub fn run_verify_for_each_row(
         subpolynomial_max_multiplicands,
         first_round_mles,
         final_round_mles,
+        post_result_challenges,
         first_round_builder.chi_evaluation_lengths().to_vec(),
         first_round_builder.rho_evaluation_lengths().to_vec(),
     );
@@ -292,6 +305,7 @@ mod tests {
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
                 vec![3],
             );
         let zero = verification_builder.try_consume_rho_evaluation().unwrap();
@@ -316,6 +330,7 @@ mod tests {
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
                 vec![3],
             );
         let zero = verification_builder.try_consume_rho_evaluation().unwrap();
@@ -336,6 +351,7 @@ mod tests {
                     vec![TestScalar::ONE, TestScalar::TWO],
                     vec![-TestScalar::ONE, -TestScalar::TWO],
                 ],
+                Vec::new(),
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
@@ -369,6 +385,7 @@ mod tests {
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
             );
         let one = verification_builder
             .try_consume_first_round_mle_evaluation()
@@ -391,6 +408,7 @@ mod tests {
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
             );
         verification_builder.singleton_chi_evaluation();
     }
@@ -401,6 +419,7 @@ mod tests {
             MockVerificationBuilder::new(
                 Vec::new(),
                 2,
+                Vec::new(),
                 Vec::new(),
                 Vec::new(),
                 vec![2],
@@ -424,6 +443,7 @@ mod tests {
                 2,
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
                 vec![3],
                 Vec::new(),
             );
@@ -445,6 +465,7 @@ mod tests {
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
             );
         for i in 0..256 {
             let val = verification_builder.rho_256_evaluation().unwrap();
@@ -455,21 +476,40 @@ mod tests {
         assert_eq!(val, TestScalar::ZERO);
     }
 
-    #[should_panic(expected = "No tests currently use this function")]
     #[test]
-    fn we_can_get_unimplemented_error_for_try_consume_post_result_challenge() {
+    fn we_can_try_consume_post_result_challenge() {
         let mut verification_builder: MockVerificationBuilder<TestScalar> =
             MockVerificationBuilder::new(
                 Vec::new(),
                 2,
                 Vec::new(),
                 Vec::new(),
+                vec![TestScalar::ONE],
                 Vec::new(),
                 Vec::new(),
             );
-        verification_builder
+        let one = verification_builder
             .try_consume_post_result_challenge()
             .unwrap();
+        assert_eq!(one, TestScalar::ONE);
+    }
+
+    #[test]
+    fn we_can_get_error_when_not_post_result_challenge() {
+        let mut verification_builder: MockVerificationBuilder<TestScalar> =
+            MockVerificationBuilder::new(
+                Vec::new(),
+                2,
+                Vec::new(),
+                vec![],
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            );
+        let error = verification_builder
+            .try_consume_post_result_challenge()
+            .unwrap_err();
+        assert!(matches!(error, ProofSizeMismatch::PostResultCountMismatch));
     }
 
     #[test]
@@ -478,6 +518,7 @@ mod tests {
             MockVerificationBuilder::new(
                 Vec::new(),
                 2,
+                Vec::new(),
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
@@ -499,6 +540,7 @@ mod tests {
             MockVerificationBuilder::new(
                 Vec::new(),
                 2,
+                Vec::new(),
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
@@ -527,6 +569,7 @@ mod tests {
                 ],
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
             );
         let result = verification_builder
             .try_consume_final_round_mle_evaluations(2)
@@ -542,6 +585,7 @@ mod tests {
                 2,
                 Vec::new(),
                 vec![vec![TestScalar::ONE]],
+                Vec::new(),
                 Vec::new(),
                 Vec::new(),
             );
@@ -563,6 +607,7 @@ mod tests {
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
             );
         let result = verification_builder.try_consume_bit_distribution().unwrap();
         assert_eq!(
@@ -577,6 +622,7 @@ mod tests {
             MockVerificationBuilder::new(
                 Vec::new(),
                 2,
+                Vec::new(),
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),

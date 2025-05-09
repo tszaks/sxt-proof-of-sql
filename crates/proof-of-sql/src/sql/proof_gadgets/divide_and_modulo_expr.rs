@@ -188,6 +188,7 @@ mod tests {
             lhs.len(),
             &first_round_builder,
             &final_round_builder,
+            Vec::new(),
             4,
             |verification_builder, chi_eval, evaluation_point| {
                 let accessor = indexmap! {

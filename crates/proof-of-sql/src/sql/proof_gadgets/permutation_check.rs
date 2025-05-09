@@ -166,6 +166,7 @@ mod tests {
             3,
             &first_round_builder,
             &final_round_builder,
+            Vec::new(),
             3,
             |verification_builder, chi_eval, evaluation_point| {
                 verify_permutation_check(
