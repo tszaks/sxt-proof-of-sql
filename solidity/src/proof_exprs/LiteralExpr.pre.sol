@@ -8,10 +8,6 @@ import "../base/Errors.sol";
 /// @title LiteralExpr
 /// @dev Library for handling literal expressions
 library LiteralExpr {
-    enum LiteralVariant {
-        BigInt
-    }
-
     /// @notice Evaluates a literal expression
     /// @custom:as-yul-wrapper
     /// #### Wrapped Yul Function

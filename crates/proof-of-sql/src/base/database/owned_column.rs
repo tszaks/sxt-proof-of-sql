@@ -36,21 +36,21 @@ pub enum OwnedColumn<S: Scalar> {
     Int(Vec<i32>),
     /// i64 columns
     BigInt(Vec<i64>),
-    /// String columns
-    VarChar(Vec<String>),
-    /// Variable length binary columns
-    VarBinary(Vec<Vec<u8>>),
     /// i128 columns
     Int128(Vec<i128>),
+    /// String columns
+    VarChar(Vec<String>),
     /// Decimal columns
     #[cfg_attr(test, proptest(skip))]
     Decimal75(Precision, i8, Vec<S>),
-    /// Scalar columns
-    #[cfg_attr(test, proptest(skip))]
-    Scalar(Vec<S>),
     /// Timestamp columns
     #[cfg_attr(test, proptest(skip))]
     TimestampTZ(PoSQLTimeUnit, PoSQLTimeZone, Vec<i64>),
+    /// Scalar columns
+    #[cfg_attr(test, proptest(skip))]
+    Scalar(Vec<S>),
+    /// Variable length binary columns
+    VarBinary(Vec<Vec<u8>>),
 }
 
 impl<S: Scalar> OwnedColumn<S> {
