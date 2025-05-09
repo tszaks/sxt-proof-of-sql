@@ -226,6 +226,7 @@ fn we_can_verify_a_simple_proof() {
         4,
         &first_round_builder,
         &final_round_builder,
+        Vec::new(),
         3,
         |verification_builder, chi_eval, evaluation_point| {
             let accessor = indexmap! {
@@ -277,6 +278,7 @@ fn we_can_reject_a_simple_tampered_proof() {
         3,
         Vec::new(),
         final_round_mles,
+        Vec::new(),
         Vec::new(),
         Vec::new(),
     );
