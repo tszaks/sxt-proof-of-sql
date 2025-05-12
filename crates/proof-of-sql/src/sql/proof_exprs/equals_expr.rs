@@ -128,10 +128,7 @@ impl ProofExpr for EqualsExpr {
     }
 }
 
-#[expect(
-    clippy::missing_panics_doc,
-    reason = "table_length is guaranteed to match lhs.len()"
-)]
+#[tracing::instrument(level = "debug", skip_all)]
 pub fn first_round_evaluate_equals_zero<'a, S: Scalar>(
     table_length: usize,
     alloc: &'a Bump,
@@ -141,6 +138,7 @@ pub fn first_round_evaluate_equals_zero<'a, S: Scalar>(
     alloc.alloc_slice_fill_with(table_length, |i| lhs[i] == S::zero())
 }
 
+#[tracing::instrument(level = "debug", skip_all)]
 pub fn final_round_evaluate_equals_zero<'a, S: Scalar>(
     table_length: usize,
     builder: &mut FinalRoundBuilder<'a, S>,
