@@ -118,9 +118,9 @@ library CastExpr {
             }
 
             function cast_expr_evaluate(expr_ptr, builder_ptr, chi_eval) -> expr_ptr_out, result_eval {
-                expr_ptr, result_eval := proof_expr_evaluate(expr_ptr, builder_ptr, chi_eval)
                 let data_type
-                expr_ptr_out, data_type := read_data_type(expr_ptr)
+                expr_ptr, data_type := read_data_type(expr_ptr)
+                expr_ptr_out, result_eval := proof_expr_evaluate(expr_ptr, builder_ptr, chi_eval)
             }
 
             let __exprOutOffset

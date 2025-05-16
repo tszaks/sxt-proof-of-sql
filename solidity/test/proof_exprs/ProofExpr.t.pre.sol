@@ -225,8 +225,8 @@ contract ProofExprTest is Test {
         VerificationBuilder.Builder memory builder;
         bytes memory expr = abi.encodePacked(
             CAST_EXPR_VARIANT,
-            abi.encodePacked(LITERAL_EXPR_VARIANT, DATA_TYPE_INT_VARIANT, int32(2)),
             DATA_TYPE_BIGINT_VARIANT,
+            abi.encodePacked(LITERAL_EXPR_VARIANT, DATA_TYPE_INT_VARIANT, int32(2)),
             hex"abcdef"
         );
         bytes memory expectedExprOut = hex"abcdef";

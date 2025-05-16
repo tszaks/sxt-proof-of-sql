@@ -546,16 +546,16 @@ impl EVMNotExpr {
 /// Represents a CAST expression.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct EVMCastExpr {
-    from_expr: Box<EVMDynProofExpr>,
     to_type: ColumnType,
+    from_expr: Box<EVMDynProofExpr>,
 }
 
 impl EVMCastExpr {
     #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn new(from_expr: EVMDynProofExpr, to_type: ColumnType) -> Self {
         Self {
-            from_expr: Box::new(from_expr),
             to_type,
+            from_expr: Box::new(from_expr),
         }
     }
 
